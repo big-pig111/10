@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>土地游戏 - Solana 网格交易平台</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Solana Web3.js -->
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    
+    <!-- Styles -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(to bottom right, #000000, #1a1a1a);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .grid-cell {
+            aspect-ratio: 1;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(30, 30, 30, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .grid-cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 32px rgba(0, 255, 255, 0.3);
+            border-color: rgba(0, 255, 255, 0.5);
+        }
+        
+        .grid-cell.owned {
+            border: 2px solid #00ff88;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+        
+        .wallet-button {
+            background: linear-gradient(135deg, #512da8, #7c4dff);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .wallet-button:hover {
+            background: linear-gradient(135deg, #7c4dff, #9575cd);
+            transform: translateY(-2px);
+        }
+        
+        .buy-button {
+            background: #00ff88;
+            color: #000;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .buy-button:hover {
+            background: #00cc6a;
+        }
+        
+        .buy-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: #1a1a1a;
+            padding: 32px;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            display: none;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast.success {
+            background: #00ff88;
+            color: #000;
+        }
+        
+        .toast.error {
+            background: #ff4444;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="border-b border-gray-800 bg-black/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 h-16 flex items-center justify-between">
+            <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-600 bg-clip-text text-transparent">
+                土地游戏
+            </h1>
+            <div class="flex items-center gap-4">
+                <a href="#" onclick="showMyLands()" class="text-gray-400 hover:text-white transition">我的土地</a>
+                <a href="#" onclick="showMarketplace()" class="text-gray-400 hover:text-white transition">市场</a>
+                <button id="walletButton" class="wallet-button" onclick="connectWallet()">
+                    连接钱包
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Game Info -->
+        <div class="text-center mb-8">
+            <h2 class="text-4xl font-bold mb-4">Solana 土地游戏</h2>
+            <p class="text-lg text-gray-400">
+                当前基础价格: <span id="basePrice">0.05</span> SOL | 
+                已售出: <span id="soldCount">0</span>/64
+            </p>
+        </div>
+
+        <!-- Grid Container -->
+        <div id="gridContainer" class="max-w-4xl mx-auto grid grid-cols-8 gap-2">
+            <!-- Grid cells will be generated by JavaScript -->
+        </div>
+
+        <!-- My Lands Section (hidden by default) -->
+        <div id="myLandsSection" class="hidden max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold mb-6">我的土地</h2>
+            <div id="myLandsGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <!-- My lands will be displayed here -->
+            </div>
+        </div>
+
+        <!-- Marketplace Section (hidden by default) -->
+        <div id="marketplaceSection" class="hidden max-w-6xl mx-auto">
+            <h2 class="text-3xl font-bold mb-6">土地市场</h2>
+            <div id="marketplaceGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <!-- For sale lands will be displayed here -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h3 class="text-2xl font-bold mb-4">管理土地 #<span id="modalGridId"></span></h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">图片URL</label>
+                    <input type="text" id="imageUrl" class="w-full px-3 py-2 bg-gray-800 rounded-md border border-gray-700 focus:border-cyan-500 focus:outline-none" placeholder="输入图片URL">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">出售价格 (SOL)</label>
+                    <input type="number" id="salePrice" step="0.01" class="w-full px-3 py-2 bg-gray-800 rounded-md border border-gray-700 focus:border-cyan-500 focus:outline-none" placeholder="设置出售价格">
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="updateGrid()" class="flex-1 bg-cyan-500 hover:bg-cyan-600 text-black font-semibold py-2 px-4 rounded-md transition">
+                        更新土地
+                    </button>
+                    <button onclick="closeModal()" class="flex-1 bg-gray-700 hover:bg-gray-600 font-semibold py-2 px-4 rounded-md transition">
+                        取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // Configuration
+        const SUPABASE_URL = 'https://hjobbzyrcolyztfukvvc.supabase.co';
+        const SUPABASE_ANON_KEY = 'zB1LZfR4CsA6vQR9pJgLt8F2UskAYrAvCUHGmEMylCpeKrHgjEhyi5vELUr1eeg/p6LkJdjFDzRPUvOoiFgq0A==';
+        const DEVELOPER_WALLET = '7jxcMBPumwn6Th9jo66px9bdgReKZJ9wGh3xJKdJDr3v';
+        const INITIAL_PRICE = 0.05;
+
+        // Global variables
+        let supabase;
+        let provider = null;
+        let publicKey = null;
+        let grids = [];
+        let currentBasePrice = INITIAL_PRICE;
+        let selectedGrid = null;
+
+        // Initialize Supabase
+        function initSupabase() {
+            const { createClient } = window.supabase;
+            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // Connect wallet
+        async function connectWallet() {
+            try {
+                if ('phantom' in window) {
+                    provider = window.phantom?.solana;
+                    
+                    if (provider?.isPhantom) {
+                        const resp = await provider.connect();
+                        publicKey = resp.publicKey.toString();
+                        
+                        document.getElementById('walletButton').textContent = 
+                            publicKey.slice(0, 4) + '...' + publicKey.slice(-4);
+                        
+                        showToast('钱包连接成功', 'success');
+                        fetchGrids();
+                    }
+                } else {
+                    showToast('请安装 Phantom 钱包', 'error');
+                    window.open('https://phantom.app/', '_blank');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('连接钱包失败', 'error');
+            }
+        }
+
+        // Fetch grids from Supabase
+        async function fetchGrids() {
+            try {
+                const { data, error } = await supabase
+                    .from('land_grids')
+                    .select('*')
+                    .order('position', { ascending: true });
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    // Initialize grids if empty
+                    grids = Array.from({ length: 64 }, (_, i) => ({
+                        id: i,
+                        position: i,
+                        owner_wallet: null,
+                        price: INITIAL_PRICE,
+                        image_url: null,
+                        is_for_sale: false,
+                        sale_price: null
+                    }));
+                } else {
+                    grids = data;
+                }
+
+                renderGrids();
+                updateStats();
+            } catch (error) {
+                console.error('Error fetching grids:', error);
+                showToast('获取土地数据失败', 'error');
+            }
+        }
+
+        // Fetch current price
+        async function fetchCurrentPrice() {
+            try {
+                const { data, error } = await supabase
+                    .from('price_history')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(1);
+
+                if (data && data.length > 0) {
+                    currentBasePrice = data[0].base_price;
+                    document.getElementById('basePrice').textContent = currentBasePrice;
+                }
+            } catch (error) {
+                console.error('Error fetching price:', error);
+            }
+        }
+
+        // Render grids
+        function renderGrids() {
+            const container = document.getElementById('gridContainer');
+            container.innerHTML = '';
+
+            grids.forEach(grid => {
+                const cell = document.createElement('div');
+                cell.className = `grid-cell ${grid.owner_wallet === publicKey ? 'owned' : ''}`;
+                
+                let content = '';
+                
+                if (grid.image_url) {
+                    content += `<img src="${grid.image_url}" alt="Grid ${grid.position}" class="w-full h-full object-cover">`;
+                } else {
+                    content += `<div class="w-full h-full flex items-center justify-center text-gray-500 text-sm">#${grid.position + 1}</div>`;
+                }
+
+                if (!grid.owner_wallet) {
+                    content += `<button class="buy-button" onclick="buyGrid(${grid.id})">${currentBasePrice} SOL</button>`;
+                } else if (grid.is_for_sale && grid.owner_wallet !== publicKey) {
+                    content += `<button class="buy-button" onclick="buyGrid(${grid.id})">购买 ${grid.sale_price} SOL</button>`;
+                }
+
+                cell.innerHTML = content;
+                
+                if (grid.owner_wallet === publicKey) {
+                    cell.onclick = () => openModal(grid);
+                }
+                
+                container.appendChild(cell);
+            });
+        }
+
+        // Buy grid
+        async function buyGrid(gridId) {
+            if (!publicKey) {
+                showToast('请先连接钱包', 'error');
+                return;
+            }
+
+            const grid = grids.find(g => g.id === gridId);
+            if (!grid) return;
+
+            try {
+                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
+                const fromPubkey = new solanaWeb3.PublicKey(publicKey);
+                const toPubkey = new solanaWeb3.PublicKey(grid.owner_wallet || DEVELOPER_WALLET);
+                const lamports = (grid.owner_wallet ? grid.sale_price : currentBasePrice) * solanaWeb3.LAMPORTS_PER_SOL;
+
+                const transaction = new solanaWeb3.Transaction().add(
+                    solanaWeb3.SystemProgram.transfer({
+                        fromPubkey,
+                        toPubkey,
+                        lamports
+                    })
+                );
+
+                const { blockhash } = await connection.getLatestBlockhash();
+                transaction.recentBlockhash = blockhash;
+                transaction.feePayer = fromPubkey;
+
+                const signedTransaction = await provider.signTransaction(transaction);
+                const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+                
+                await connection.confirmTransaction(signature);
+
+                // Update database
+                const { error } = await supabase
+                    .from('land_grids')
+                    .update({
+                        owner_wallet: publicKey,
+                        is_for_sale: false,
+                        sale_price: null,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', grid.id);
+
+                if (error) throw error;
+
+                // Record transaction
+                await supabase
+                    .from('transactions')
+                    .insert({
+                        from_wallet: publicKey,
+                        to_wallet: grid.owner_wallet || DEVELOPER_WALLET,
+                        grid_id: grid.id,
+                        price: grid.owner_wallet ? grid.sale_price : currentBasePrice,
+                        transaction_hash: signature
+                    });
+
+                // Check if price should increase
+                if (!grid.owner_wallet) {
+                    const soldCount = grids.filter(g => g.owner_wallet !== null).length + 1;
+                    if (soldCount % 8 === 0) {
+                        const newPrice = currentBasePrice * 2;
+                        await supabase
+                            .from('price_history')
+                            .insert({
+                                base_price: newPrice,
+                                grids_sold: soldCount
+                            });
+                        currentBasePrice = newPrice;
+                    }
+                }
+
+                showToast('购买成功！', 'success');
+                fetchGrids();
+                fetchCurrentPrice();
+            } catch (error) {
+                console.error('Error buying grid:', error);
+                showToast('购买失败', 'error');
+            }
+        }
+
+        // Open modal
+        function openModal(grid) {
+            selectedGrid = grid;
+            document.getElementById('modalGridId').textContent = grid.position + 1;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            document.getElementById('imageUrl').value = '';
+            document.getElementById('salePrice').value = '';
+            selectedGrid = null;
+        }
+
+        // Update grid
+        async function updateGrid() {
+            if (!selectedGrid || !publicKey) return;
+
+            const imageUrl = document.getElementById('imageUrl').value;
+            const salePrice = document.getElementById('salePrice').value;
+
+            try {
+                const updates = {
+                    updated_at: new Date().toISOString()
+                };
+
+                if (imageUrl) updates.image_url = imageUrl;
+                if (salePrice) {
+                    updates.is_for_sale = true;
+                    updates.sale_price = parseFloat(salePrice);
+                }
+
+                const { error } = await supabase
+                    .from('land_grids')
+                    .update(updates)
+                    .eq('id', selectedGrid.id);
+
+                if (error) throw error;
+
+                showToast('更新成功！', 'success');
+                closeModal();
+                fetchGrids();
+            } catch (error) {
+                console.error('Error updating grid:', error);
+                showToast('更新失败', 'error');
+            }
+        }
+
+        // Update stats
+        function updateStats() {
+            const soldCount = grids.filter(g => g.owner_wallet !== null).length;
+            document.getElementById('soldCount').textContent = soldCount;
+        }
+
+        // Show sections
+        function showMyLands() {
+            if (!publicKey) {
+                showToast('请先连接钱包', 'error');
+                return;
+            }
+
+            document.getElementById('gridContainer').parentElement.style.display = 'none';
+            document.getElementById('marketplaceSection').style.display = 'none';
+            document.getElementById('myLandsSection').style.display = 'block';
+
+            const myLands = grids.filter(g => g.owner_wallet === publicKey);
+            const container = document.getElementById('myLandsGrid');
+            container.innerHTML = '';
+
+            if (myLands.length === 0) {
+                container.innerHTML = '<p class="col-span-full text-center text-gray-400">你还没有任何土地</p>';
+            } else {
+                myLands.forEach(grid => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition';
+                    card.onclick = () => openModal(grid);
+                    
+                    let content = '<div class="aspect-square mb-2">';
+                    if (grid.image_url) {
+                        content += `<img src="${grid.image_url}" alt="Grid ${grid.position}" class="w-full h-full object-cover rounded">`;
+                    } else {
+                        content += `<div class="w-full h-full bg-gray-700 rounded flex items-center justify-center text-2xl font-bold text-gray-500">#${grid.position + 1}</div>`;
+                    }
+                    content += '</div>';
+                    content += `<p class="font-semibold">土地 #${grid.position + 1}</p>`;
+                    if (grid.is_for_sale) {
+                        content += `<p class="text-green-500">出售中: ${grid.sale_price} SOL</p>`;
+                    }
+                    
+                    card.innerHTML = content;
+                    container.appendChild(card);
+                });
+            }
+        }
+
+        function showMarketplace() {
+            document.getElementById('gridContainer').parentElement.style.display = 'none';
+            document.getElementById('myLandsSection').style.display = 'none';
+            document.getElementById('marketplaceSection').style.display = 'block';
+
+            const forSale = grids.filter(g => g.is_for_sale);
+            const container = document.getElementById('marketplaceGrid');
+            container.innerHTML = '';
+
+            if (forSale.length === 0) {
+                container.innerHTML = '<p class="col-span-full text-center text-gray-400">暂时没有土地在出售</p>';
+            } else {
+                forSale.forEach(grid => {
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 rounded-lg p-4';
+                    
+                    let content = '<div class="aspect-square mb-3">';
+                    if (grid.image_url) {
+                        content += `<img src="${grid.image_url}" alt="Grid ${grid.position}" class="w-full h-full object-cover rounded">`;
+                    } else {
+                        content += `<div class="w-full h-full bg-gray-700 rounded flex items-center justify-center text-3xl font-bold text-gray-500">#${grid.position + 1}</div>`;
+                    }
+                    content += '</div>';
+                    content += `<p class="font-semibold">土地 #${grid.position + 1}</p>`;
+                    content += `<p class="text-sm text-gray-400 mb-2">卖家: ${grid.owner_wallet.slice(0, 4)}...${grid.owner_wallet.slice(-4)}</p>`;
+                    content += '<div class="flex items-center justify-between">';
+                    content += `<span class="text-lg font-bold text-green-500">${grid.sale_price} SOL</span>`;
+                    content += `<button class="buy-button" onclick="buyGrid(${grid.id})" ${grid.owner_wallet === publicKey ? 'disabled' : ''}>购买</button>`;
+                    content += '</div>';
+                    
+                    card.innerHTML = content;
+                    container.appendChild(card);
+                });
+            }
+        }
+
+        // Initialize on load
+        window.onload = function() {
+            initSupabase();
+            fetchGrids();
+            fetchCurrentPrice();
+        };
+    </script>
+</body>
+</html> 
