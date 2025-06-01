@@ -58,23 +58,6 @@
         </div>
         <h1 class="text-xl font-bold text-dark">图片存储</h1>
       </div>
-      
-      <div class="flex items-center space-x-4">
-        <div id="auth-section" class="flex items-center space-x-3">
-          <button id="login-btn" class="btn-primary hidden">
-            <i class="fa fa-sign-in mr-2"></i>登录
-          </button>
-          <button id="logout-btn" class="hidden btn-secondary">
-            <i class="fa fa-sign-out mr-2"></i>退出
-          </button>
-          <div id="user-info" class="hidden items-center space-x-2">
-            <div class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
-              <img id="user-avatar" src="" alt="用户头像" class="w-full h-full object-cover">
-            </div>
-            <div id="user-name" class="text-sm font-medium"></div>
-          </div>
-        </div>
-      </div>
     </div>
   </header>
 
@@ -105,7 +88,7 @@
     <!-- 图片网格 -->
     <div class="card">
       <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-dark">我的图片</h2>
+        <h2 class="text-xl font-bold text-dark">所有图片</h2>
         <div class="relative">
           <input type="text" id="search-input" placeholder="搜索图片..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
           <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
@@ -147,7 +130,7 @@
             <h3 id="modal-filename" class="font-medium text-dark"></h3>
             <p id="modal-created-at" class="text-sm text-gray-500"></p>
           </div>
-          <button id="delete-image" class="text-red-500 hover:text-red-700 transition-colors">
+          <button id="delete-image" class="text-red-500 hover:text-red-700 transition-colors hidden">
             <i class="fa fa-trash mr-1"></i> 删除
           </button>
         </div>
@@ -158,16 +141,11 @@
   <script>
     // 配置 Supabase 客户端
     const supabase = createClient(
-      'https://https://varxwothzqvxzskyjrrn.supabase.co',
+      'https://varxwothzqvxzskyjrrn.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcnh3b3RoenF2eHpza3lqcnJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3OTkwNTUsImV4cCI6MjA2NDM3NTA1NX0.N6DfiR5e_426cnFED3_KWJlY4chtqofeNy-QkA4OdLI'
     );
     
     // DOM 元素
-    const loginBtn = document.getElementById('login-btn');
-    const logoutBtn = document.getElementById('logout-btn');
-    const userInfo = document.getElementById('user-info');
-    const userName = document.getElementById('user-name');
-    const userAvatar = document.getElementById('user-avatar');
     const fileInput = document.getElementById('file-input');
     const dropArea = document.getElementById('drop-area');
     const uploadProgress = document.getElementById('upload-progress');
@@ -189,22 +167,12 @@
     
     // 初始化应用
     document.addEventListener('DOMContentLoaded', async () => {
-      // 检查用户会话
-      const { data: { session } } = await supabase.auth.getSession();
-      updateAuthUI(session);
-      
-      // 监听用户状态变化
-      supabase.auth.onAuthStateChange((event, session) => {
-        updateAuthUI(session);
-      });
+      // 加载所有图片
+      loadImages();
       
       // 上传相关事件监听
       uploadContainer.addEventListener('click', () => {
-        if (supabase.auth.user()) {
-          fileInput.click();
-        } else {
-          loginWithGoogle();
-        }
+        fileInput.click();
       });
       
       fileInput.addEventListener('change', handleFileUpload);
@@ -257,85 +225,9 @@
         }
       });
       
-      // 删除图片
-      deleteImageBtn.addEventListener('click', deleteSelectedImage);
-      
       // 搜索功能
       searchInput.addEventListener('input', searchImages);
     });
-    
-    // 更新认证UI
-    function updateAuthUI(session) {
-      if (session) {
-        // 用户已登录
-        loginBtn.classList.add('hidden');
-        logoutBtn.classList.remove('hidden');
-        userInfo.classList.remove('hidden');
-        userName.textContent = session.user.user_metadata.username || session.user.email;
-        
-        if (session.user.user_metadata.avatar_url) {
-          userAvatar.src = session.user.user_metadata.avatar_url;
-        } else {
-          userAvatar.src = `https://picsum.photos/200?random=${session.user.id}`;
-        }
-        
-        // 加载用户图片
-        loadImages();
-      } else {
-        // 用户未登录
-        loginBtn.classList.remove('hidden');
-        logoutBtn.classList.add('hidden');
-        userInfo.classList.add('hidden');
-        imagesGrid.innerHTML = '';
-        emptyState.classList.remove('hidden');
-        
-        // 添加登录提示
-        const loginPrompt = document.createElement('div');
-        loginPrompt.className = 'col-span-full text-center py-8';
-        loginPrompt.innerHTML = `
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 inline-block">
-            <p class="text-blue-700 font-medium mb-2">请登录以查看和上传图片</p>
-            <button onclick="loginWithGoogle()" class="btn-primary">
-              <i class="fa fa-google mr-2"></i>使用 Google 登录
-            </button>
-          </div>
-        `;
-        imagesGrid.appendChild(loginPrompt);
-      }
-    }
-    
-    // Google 登录
-    async function loginWithGoogle() {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: window.location.origin
-          }
-        });
-        
-        if (error) {
-          throw error;
-        }
-      } catch (error) {
-        console.error('登录失败:', error);
-        alert('登录失败: ' + error.message);
-      }
-    }
-    
-    // 登出
-    async function logout() {
-      try {
-        const { error } = await supabase.auth.signOut();
-        
-        if (error) {
-          throw error;
-        }
-      } catch (error) {
-        console.error('登出失败:', error);
-        alert('登出失败: ' + error.message);
-      }
-    }
     
     // 处理文件上传
     async function handleFileUpload(event) {
@@ -479,36 +371,9 @@
       modalCreatedAt.textContent = formatDate(createdAt);
       selectedImage = filename;
       imageModal.classList.remove('hidden');
-    }
-    
-    // 删除选中的图片
-    async function deleteSelectedImage() {
-      if (!selectedImage) {
-        return;
-      }
       
-      if (!confirm('确定要删除这张图片吗？此操作无法撤销。')) {
-        return;
-      }
-      
-      try {
-        const { error } = await supabase.storage
-          .from('images')
-          .remove([selectedImage]);
-        
-        if (error) {
-          throw error;
-        }
-        
-        // 关闭模态框并刷新图片列表
-        imageModal.classList.add('hidden');
-        loadImages();
-        
-        showNotification('图片已删除', 'success');
-      } catch (error) {
-        console.error('删除失败:', error);
-        alert('删除失败: ' + error.message);
-      }
+      // 由于无认证，隐藏删除按钮
+      deleteImageBtn.classList.add('hidden');
     }
     
     // 搜索图片
@@ -638,9 +503,7 @@
         }, 300);
       }, 3000);
     }
-    
-    // 绑定登出按钮事件
-    logoutBtn.addEventListener('click', logout);
   </script>
 </body>
-</html>    
+</html>
+    
