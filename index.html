@@ -38,6 +38,10 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 8px;
             overflow: hidden;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
         
         .grid-cell:hover {
@@ -153,6 +157,11 @@
             background: #ff4444;
         }
         
+        .toast.warning {
+            background: #ff9800;
+            color: #000;
+        }
+        
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -162,6 +171,20 @@
                 transform: translateX(0);
                 opacity: 1;
             }
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .error-message {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px auto;
+            max-width: 600px;
         }
     </style>
 </head>
@@ -173,6 +196,7 @@
                 土地游戏
             </h1>
             <div class="flex items-center gap-4">
+                <a href="#" onclick="showHome()" class="text-gray-400 hover:text-white transition">首页</a>
                 <a href="#" onclick="showMyLands()" class="text-gray-400 hover:text-white transition">我的土地</a>
                 <a href="#" onclick="showMarketplace()" class="text-gray-400 hover:text-white transition">市场</a>
                 <button id="walletButton" class="wallet-button" onclick="connectWallet()">
@@ -185,12 +209,24 @@
     <!-- Main Content -->
     <main class="container mx-auto px-4 py-8">
         <!-- Game Info -->
-        <div class="text-center mb-8">
+        <div id="homeSection" class="text-center mb-8">
             <h2 class="text-4xl font-bold mb-4">Solana 土地游戏</h2>
             <p class="text-lg text-gray-400">
                 当前基础价格: <span id="basePrice">0.05</span> SOL | 
                 已售出: <span id="soldCount">0</span>/64
             </p>
+            
+            <!-- Loading indicator -->
+            <div id="loadingIndicator" class="loading-spinner">
+                <div class="loading"></div>
+                <p class="mt-4 text-gray-400">正在加载土地数据...</p>
+            </div>
+
+            <!-- Error message -->
+            <div id="errorMessage" class="error-message hidden">
+                <p class="text-red-400 font-semibold mb-2">连接错误</p>
+                <p class="text-sm">无法连接到服务器。请检查网络连接或稍后重试。</p>
+            </div>
         </div>
 
         <!-- Grid Container -->
@@ -216,7 +252,7 @@
     </main>
 
     <!-- Modal -->
-    <div id="modal" class="modal">
+    <div id="modal" class="modal" onclick="if(event.target === this) closeModal()">
         <div class="modal-content">
             <h3 class="text-2xl font-bold mb-4">管理土地 #<span id="modalGridId"></span></h3>
             <div class="space-y-4">
@@ -260,8 +296,14 @@
 
         // Initialize Supabase
         function initSupabase() {
-            const { createClient } = window.supabase;
-            supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            try {
+                const { createClient } = window.supabase;
+                supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('Supabase initialized successfully');
+            } catch (error) {
+                console.error('Failed to initialize Supabase:', error);
+                showError('无法初始化 Supabase 客户端');
+            }
         }
 
         // Show toast notification
@@ -274,6 +316,19 @@
             setTimeout(() => {
                 toast.style.display = 'none';
             }, 3000);
+        }
+
+        // Show error message
+        function showError(message) {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('errorMessage').classList.remove('hidden');
+            document.getElementById('errorMessage').querySelector('p:last-child').textContent = message;
+        }
+
+        // Hide loading and error messages
+        function hideLoadingAndError() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            document.getElementById('errorMessage').classList.add('hidden');
         }
 
         // Connect wallet
@@ -302,42 +357,66 @@
             }
         }
 
+        // Initialize empty grids for display
+        function initializeEmptyGrids() {
+            grids = Array.from({ length: 64 }, (_, i) => ({
+                id: i,
+                position: i,
+                owner_wallet: null,
+                price: INITIAL_PRICE,
+                image_url: null,
+                is_for_sale: false,
+                sale_price: null
+            }));
+            renderGrids();
+        }
+
         // Fetch grids from Supabase
         async function fetchGrids() {
             try {
+                console.log('Fetching grids from Supabase...');
+                
+                if (!supabase) {
+                    throw new Error('Supabase not initialized');
+                }
+
                 const { data, error } = await supabase
                     .from('land_grids')
                     .select('*')
                     .order('position', { ascending: true });
 
-                if (error) throw error;
-
-                if (!data || data.length === 0) {
-                    // Initialize grids if empty
-                    grids = Array.from({ length: 64 }, (_, i) => ({
-                        id: i,
-                        position: i,
-                        owner_wallet: null,
-                        price: INITIAL_PRICE,
-                        image_url: null,
-                        is_for_sale: false,
-                        sale_price: null
-                    }));
-                } else {
-                    grids = data;
+                if (error) {
+                    console.error('Supabase error:', error);
+                    throw error;
                 }
 
-                renderGrids();
+                console.log('Fetched data:', data);
+
+                if (!data || data.length === 0) {
+                    console.log('No data found, initializing empty grids');
+                    initializeEmptyGrids();
+                    showToast('数据库为空，显示初始网格', 'warning');
+                } else {
+                    grids = data;
+                    renderGrids();
+                }
+
+                hideLoadingAndError();
                 updateStats();
             } catch (error) {
                 console.error('Error fetching grids:', error);
-                showToast('获取土地数据失败', 'error');
+                // 即使获取失败也显示空网格
+                initializeEmptyGrids();
+                hideLoadingAndError();
+                showToast('无法连接到数据库，显示演示模式', 'warning');
             }
         }
 
         // Fetch current price
         async function fetchCurrentPrice() {
             try {
+                if (!supabase) return;
+
                 const { data, error } = await supabase
                     .from('price_history')
                     .select('*')
@@ -362,13 +441,14 @@
                 const cell = document.createElement('div');
                 cell.className = `grid-cell ${grid.owner_wallet === publicKey ? 'owned' : ''}`;
                 
-                let content = '';
+                let content = '<div class="flex-1 flex items-center justify-center">';
                 
                 if (grid.image_url) {
-                    content += `<img src="${grid.image_url}" alt="Grid ${grid.position}" class="w-full h-full object-cover">`;
+                    content += `<img src="${grid.image_url}" alt="Grid ${grid.position}" class="w-full h-full object-cover rounded">`;
                 } else {
-                    content += `<div class="w-full h-full flex items-center justify-center text-gray-500 text-sm">#${grid.position + 1}</div>`;
+                    content += `<span class="text-gray-500 text-sm">#${grid.position + 1}</span>`;
                 }
+                content += '</div>';
 
                 if (!grid.owner_wallet) {
                     content += `<button class="buy-button" onclick="buyGrid(${grid.id})">${currentBasePrice} SOL</button>`;
@@ -420,41 +500,43 @@
                 await connection.confirmTransaction(signature);
 
                 // Update database
-                const { error } = await supabase
-                    .from('land_grids')
-                    .update({
-                        owner_wallet: publicKey,
-                        is_for_sale: false,
-                        sale_price: null,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', grid.id);
+                if (supabase) {
+                    const { error } = await supabase
+                        .from('land_grids')
+                        .update({
+                            owner_wallet: publicKey,
+                            is_for_sale: false,
+                            sale_price: null,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', grid.id);
 
-                if (error) throw error;
+                    if (error) throw error;
 
-                // Record transaction
-                await supabase
-                    .from('transactions')
-                    .insert({
-                        from_wallet: publicKey,
-                        to_wallet: grid.owner_wallet || DEVELOPER_WALLET,
-                        grid_id: grid.id,
-                        price: grid.owner_wallet ? grid.sale_price : currentBasePrice,
-                        transaction_hash: signature
-                    });
+                    // Record transaction
+                    await supabase
+                        .from('transactions')
+                        .insert({
+                            from_wallet: publicKey,
+                            to_wallet: grid.owner_wallet || DEVELOPER_WALLET,
+                            grid_id: grid.id,
+                            price: grid.owner_wallet ? grid.sale_price : currentBasePrice,
+                            transaction_hash: signature
+                        });
 
-                // Check if price should increase
-                if (!grid.owner_wallet) {
-                    const soldCount = grids.filter(g => g.owner_wallet !== null).length + 1;
-                    if (soldCount % 8 === 0) {
-                        const newPrice = currentBasePrice * 2;
-                        await supabase
-                            .from('price_history')
-                            .insert({
-                                base_price: newPrice,
-                                grids_sold: soldCount
-                            });
-                        currentBasePrice = newPrice;
+                    // Check if price should increase
+                    if (!grid.owner_wallet) {
+                        const soldCount = grids.filter(g => g.owner_wallet !== null).length + 1;
+                        if (soldCount % 8 === 0) {
+                            const newPrice = currentBasePrice * 2;
+                            await supabase
+                                .from('price_history')
+                                .insert({
+                                    base_price: newPrice,
+                                    grids_sold: soldCount
+                                });
+                            currentBasePrice = newPrice;
+                        }
                     }
                 }
 
@@ -484,7 +566,10 @@
 
         // Update grid
         async function updateGrid() {
-            if (!selectedGrid || !publicKey) return;
+            if (!selectedGrid || !publicKey || !supabase) {
+                showToast('无法更新：数据库未连接', 'error');
+                return;
+            }
 
             const imageUrl = document.getElementById('imageUrl').value;
             const salePrice = document.getElementById('salePrice').value;
@@ -523,13 +608,21 @@
         }
 
         // Show sections
+        function showHome() {
+            document.getElementById('homeSection').style.display = 'block';
+            document.getElementById('gridContainer').style.display = 'grid';
+            document.getElementById('myLandsSection').style.display = 'none';
+            document.getElementById('marketplaceSection').style.display = 'none';
+        }
+
         function showMyLands() {
             if (!publicKey) {
                 showToast('请先连接钱包', 'error');
                 return;
             }
 
-            document.getElementById('gridContainer').parentElement.style.display = 'none';
+            document.getElementById('homeSection').style.display = 'none';
+            document.getElementById('gridContainer').style.display = 'none';
             document.getElementById('marketplaceSection').style.display = 'none';
             document.getElementById('myLandsSection').style.display = 'block';
 
@@ -564,7 +657,8 @@
         }
 
         function showMarketplace() {
-            document.getElementById('gridContainer').parentElement.style.display = 'none';
+            document.getElementById('homeSection').style.display = 'none';
+            document.getElementById('gridContainer').style.display = 'none';
             document.getElementById('myLandsSection').style.display = 'none';
             document.getElementById('marketplaceSection').style.display = 'block';
 
@@ -601,9 +695,22 @@
 
         // Initialize on load
         window.onload = function() {
-            initSupabase();
-            fetchGrids();
-            fetchCurrentPrice();
+            console.log('Initializing application...');
+            
+            // 先显示空网格
+            initializeEmptyGrids();
+            
+            // 尝试初始化 Supabase
+            setTimeout(() => {
+                initSupabase();
+                if (supabase) {
+                    fetchGrids();
+                    fetchCurrentPrice();
+                } else {
+                    hideLoadingAndError();
+                    showToast('运行在演示模式', 'warning');
+                }
+            }, 100);
         };
     </script>
 </body>
