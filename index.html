@@ -1,717 +1,646 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>土地游戏 - Solana 网格交易平台</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Solana Web3.js -->
-    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
-    
-    <!-- Styles -->
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(to bottom right, #000000, #1a1a1a);
-            color: white;
-            min-height: 100vh;
-        }
-        
-        .grid-cell {
-            aspect-ratio: 1;
-            position: relative;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: rgba(30, 30, 30, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            overflow: hidden;
-            padding: 4px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        
-        .grid-cell:hover {
-            transform: scale(1.05);
-            box-shadow: 0 8px 32px rgba(0, 255, 255, 0.3);
-            border-color: rgba(0, 255, 255, 0.5);
-        }
-        
-        .grid-cell.owned {
-            border: 2px solid #00ff88;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
-        }
-        
-        .wallet-button {
-            background: linear-gradient(135deg, #512da8, #7c4dff);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        
-        .wallet-button:hover {
-            background: linear-gradient(135deg, #7c4dff, #9575cd);
-            transform: translateY(-2px);
-        }
-        
-        .buy-button {
-            background: #00ff88;
-            color: #000;
-            padding: 6px 12px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 600;
-            width: 100%;
-            margin-top: 4px;
-            transition: all 0.2s ease;
-        }
-        
-        .buy-button:hover {
-            background: #00cc6a;
-        }
-        
-        .buy-button:disabled {
-            background: #666;
-            cursor: not-allowed;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: #1a1a1a;
-            padding: 32px;
-            border-radius: 16px;
-            max-width: 500px;
-            width: 90%;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .loading {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid #f3f3f3;
-            border-top: 2px solid #3498db;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #333;
-            color: white;
-            padding: 16px 24px;
-            border-radius: 8px;
-            display: none;
-            z-index: 2000;
-            animation: slideIn 0.3s ease;
-        }
-        
-        .toast.success {
-            background: #00ff88;
-            color: #000;
-        }
-        
-        .toast.error {
-            background: #ff4444;
-        }
-        
-        .toast.warning {
-            background: #ff9800;
-            color: #000;
-        }
-        
-        @keyframes slideIn {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-
-        .loading-spinner {
-            text-align: center;
-            padding: 40px;
-        }
-
-        .error-message {
-            background: rgba(255, 0, 0, 0.1);
-            border: 1px solid rgba(255, 0, 0, 0.3);
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px auto;
-            max-width: 600px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片存储 | Supabase</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.31.0/dist/umd/supabase.min.js"></script>
+  
+  <!-- Tailwind 配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#722ED1',
+            accent: '#FF7D00',
+            dark: '#1D2129',
+            light: '#F2F3F5'
+          },
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .image-card {
+        @apply relative rounded-lg overflow-hidden shadow-md transition-all duration-300 hover:shadow-xl;
+      }
+      .btn-primary {
+        @apply bg-primary text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 hover:bg-primary/90 hover:shadow-md active:scale-95;
+      }
+      .btn-secondary {
+        @apply bg-secondary text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 hover:bg-secondary/90 hover:shadow-md active:scale-95;
+      }
+      .card {
+        @apply bg-white rounded-xl shadow-md p-4 transition-all duration-300;
+      }
+    }
+  </style>
 </head>
-<body>
-    <!-- Navigation -->
-    <nav class="border-b border-gray-800 bg-black/50 backdrop-blur-md sticky top-0 z-50">
-        <div class="container mx-auto px-4 h-16 flex items-center justify-between">
-            <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-600 bg-clip-text text-transparent">
-                土地游戏
-            </h1>
-            <div class="flex items-center gap-4">
-                <a href="#" onclick="showHome()" class="text-gray-400 hover:text-white transition">首页</a>
-                <a href="#" onclick="showMyLands()" class="text-gray-400 hover:text-white transition">我的土地</a>
-                <a href="#" onclick="showMarketplace()" class="text-gray-400 hover:text-white transition">市场</a>
-                <button id="walletButton" class="wallet-button" onclick="connectWallet()">
-                    连接钱包
-                </button>
-            </div>
+<body class="font-inter bg-light min-h-screen flex flex-col">
+  <!-- 顶部导航栏 -->
+  <header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+          <i class="fa fa-image text-white text-xl"></i>
         </div>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="container mx-auto px-4 py-8">
-        <!-- Game Info -->
-        <div id="homeSection" class="text-center mb-8">
-            <h2 class="text-4xl font-bold mb-4">Solana 土地游戏</h2>
-            <p class="text-lg text-gray-400">
-                当前基础价格: <span id="basePrice">0.05</span> SOL | 
-                已售出: <span id="soldCount">0</span>/64
-            </p>
-            
-            <!-- Loading indicator -->
-            <div id="loadingIndicator" class="loading-spinner">
-                <div class="loading"></div>
-                <p class="mt-4 text-gray-400">正在加载土地数据...</p>
+        <h1 class="text-xl font-bold text-dark">图片存储</h1>
+      </div>
+      
+      <div class="flex items-center space-x-4">
+        <div id="auth-section" class="flex items-center space-x-3">
+          <button id="login-btn" class="btn-primary hidden">
+            <i class="fa fa-sign-in mr-2"></i>登录
+          </button>
+          <button id="logout-btn" class="hidden btn-secondary">
+            <i class="fa fa-sign-out mr-2"></i>退出
+          </button>
+          <div id="user-info" class="hidden items-center space-x-2">
+            <div class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden">
+              <img id="user-avatar" src="" alt="用户头像" class="w-full h-full object-cover">
             </div>
-
-            <!-- Error message -->
-            <div id="errorMessage" class="error-message hidden">
-                <p class="text-red-400 font-semibold mb-2">连接错误</p>
-                <p class="text-sm">无法连接到服务器。请检查网络连接或稍后重试。</p>
-            </div>
+            <div id="user-name" class="text-sm font-medium"></div>
+          </div>
         </div>
-
-        <!-- Grid Container -->
-        <div id="gridContainer" class="max-w-4xl mx-auto grid grid-cols-8 gap-2">
-            <!-- Grid cells will be generated by JavaScript -->
-        </div>
-
-        <!-- My Lands Section (hidden by default) -->
-        <div id="myLandsSection" class="hidden max-w-6xl mx-auto">
-            <h2 class="text-3xl font-bold mb-6">我的土地</h2>
-            <div id="myLandsGrid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <!-- My lands will be displayed here -->
-            </div>
-        </div>
-
-        <!-- Marketplace Section (hidden by default) -->
-        <div id="marketplaceSection" class="hidden max-w-6xl mx-auto">
-            <h2 class="text-3xl font-bold mb-6">土地市场</h2>
-            <div id="marketplaceGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                <!-- For sale lands will be displayed here -->
-            </div>
-        </div>
-    </main>
-
-    <!-- Modal -->
-    <div id="modal" class="modal" onclick="if(event.target === this) closeModal()">
-        <div class="modal-content">
-            <h3 class="text-2xl font-bold mb-4">管理土地 #<span id="modalGridId"></span></h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2">图片URL</label>
-                    <input type="text" id="imageUrl" class="w-full px-3 py-2 bg-gray-800 rounded-md border border-gray-700 focus:border-cyan-500 focus:outline-none" placeholder="输入图片URL">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-2">出售价格 (SOL)</label>
-                    <input type="number" id="salePrice" step="0.01" class="w-full px-3 py-2 bg-gray-800 rounded-md border border-gray-700 focus:border-cyan-500 focus:outline-none" placeholder="设置出售价格">
-                </div>
-                <div class="flex gap-4">
-                    <button onclick="updateGrid()" class="flex-1 bg-cyan-500 hover:bg-cyan-600 text-black font-semibold py-2 px-4 rounded-md transition">
-                        更新土地
-                    </button>
-                    <button onclick="closeModal()" class="flex-1 bg-gray-700 hover:bg-gray-600 font-semibold py-2 px-4 rounded-md transition">
-                        取消
-                    </button>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
+  </header>
 
-    <!-- Toast -->
-    <div id="toast" class="toast"></div>
+  <!-- 主内容区 -->
+  <main class="flex-grow container mx-auto px-4 py-8">
+    <!-- 上传区域 -->
+    <div class="card mb-8">
+      <h2 class="text-xl font-bold text-dark mb-4">上传图片</h2>
+      
+      <div id="upload-container" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
+        <input type="file" id="file-input" accept="image/*" class="hidden">
+        
+        <div id="drop-area" class="py-8">
+          <i class="fa fa-cloud-upload text-gray-400 text-4xl mb-4"></i>
+          <p class="text-gray-500 mb-2">点击或拖拽图片到此处上传</p>
+          <p class="text-xs text-gray-400">支持 JPG, PNG, WebP 格式，最大 10MB</p>
+        </div>
+        
+        <div id="upload-progress" class="hidden mt-4">
+          <div class="w-full bg-gray-200 rounded-full h-2.5">
+            <div id="progress-bar" class="bg-primary h-2.5 rounded-full" style="width: 0%"></div>
+          </div>
+          <p id="progress-text" class="text-sm text-gray-500 mt-1">上传中: 0%</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 图片网格 -->
+    <div class="card">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold text-dark">我的图片</h2>
+        <div class="relative">
+          <input type="text" id="search-input" placeholder="搜索图片..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+          <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+        </div>
+      </div>
+      
+      <div id="images-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- 图片将通过JavaScript动态加载 -->
+        <div class="col-span-full text-center py-12 text-gray-500" id="empty-state">
+          <i class="fa fa-folder-open-o text-4xl mb-4"></i>
+          <p>暂无图片</p>
+          <p class="text-sm mt-2">上传图片后它们将显示在这里</p>
+        </div>
+      </div>
+    </div>
+  </main>
 
-    <script>
-        // Configuration
-        const SUPABASE_URL = 'https://hjobbzyrcolyztfukvvc.supabase.co';
-        const SUPABASE_ANON_KEY = 'zB1LZfR4CsA6vQR9pJgLt8F2UskAYrAvCUHGmEMylCpeKrHgjEhyi5vELUr1eeg/p6LkJdjFDzRPUvOoiFgq0A==';
-        const DEVELOPER_WALLET = '7jxcMBPumwn6Th9jo66px9bdgReKZJ9wGh3xJKdJDr3v';
-        const INITIAL_PRICE = 0.05;
+  <!-- 页脚 -->
+  <footer class="bg-dark text-white py-8 mt-12">
+    <div class="container mx-auto px-4 text-center">
+      <p>&copy; 2025 图片存储应用 | 使用 Supabase 构建</p>
+    </div>
+  </footer>
 
-        // Global variables
-        let supabase;
-        let provider = null;
-        let publicKey = null;
-        let grids = [];
-        let currentBasePrice = INITIAL_PRICE;
-        let selectedGrid = null;
+  <!-- 图片预览模态框 -->
+  <div id="image-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
+    <div class="relative max-w-4xl w-full mx-4">
+      <button id="close-modal" class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors">
+        <i class="fa fa-times text-2xl"></i>
+      </button>
+      
+      <div class="bg-white rounded-lg overflow-hidden">
+        <div class="relative" style="padding-bottom: 75%;">
+          <img id="modal-image" src="" alt="图片预览" class="absolute inset-0 w-full h-full object-contain">
+        </div>
+        
+        <div class="p-4 flex justify-between items-center">
+          <div>
+            <h3 id="modal-filename" class="font-medium text-dark"></h3>
+            <p id="modal-created-at" class="text-sm text-gray-500"></p>
+          </div>
+          <button id="delete-image" class="text-red-500 hover:text-red-700 transition-colors">
+            <i class="fa fa-trash mr-1"></i> 删除
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-        // Initialize Supabase
-        function initSupabase() {
-            try {
-                const { createClient } = window.supabase;
-                supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                console.log('Supabase initialized successfully');
-            } catch (error) {
-                console.error('Failed to initialize Supabase:', error);
-                showError('无法初始化 Supabase 客户端');
-            }
+  <script>
+    // 配置 Supabase 客户端
+    const supabase = createClient(
+      'https://https://varxwothzqvxzskyjrrn.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcnh3b3RoenF2eHpza3lqcnJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3OTkwNTUsImV4cCI6MjA2NDM3NTA1NX0.N6DfiR5e_426cnFED3_KWJlY4chtqofeNy-QkA4OdLI'
+    );
+    
+    // DOM 元素
+    const loginBtn = document.getElementById('login-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const userInfo = document.getElementById('user-info');
+    const userName = document.getElementById('user-name');
+    const userAvatar = document.getElementById('user-avatar');
+    const fileInput = document.getElementById('file-input');
+    const dropArea = document.getElementById('drop-area');
+    const uploadProgress = document.getElementById('upload-progress');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const uploadContainer = document.getElementById('upload-container');
+    const imagesGrid = document.getElementById('images-grid');
+    const emptyState = document.getElementById('empty-state');
+    const imageModal = document.getElementById('image-modal');
+    const modalImage = document.getElementById('modal-image');
+    const modalFilename = document.getElementById('modal-filename');
+    const modalCreatedAt = document.getElementById('modal-created-at');
+    const closeModal = document.getElementById('close-modal');
+    const deleteImageBtn = document.getElementById('delete-image');
+    const searchInput = document.getElementById('search-input');
+    
+    // 当前选中的图片
+    let selectedImage = null;
+    
+    // 初始化应用
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 检查用户会话
+      const { data: { session } } = await supabase.auth.getSession();
+      updateAuthUI(session);
+      
+      // 监听用户状态变化
+      supabase.auth.onAuthStateChange((event, session) => {
+        updateAuthUI(session);
+      });
+      
+      // 上传相关事件监听
+      uploadContainer.addEventListener('click', () => {
+        if (supabase.auth.user()) {
+          fileInput.click();
+        } else {
+          loginWithGoogle();
         }
-
-        // Show toast notification
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            toast.textContent = message;
-            toast.className = `toast ${type}`;
-            toast.style.display = 'block';
-            
-            setTimeout(() => {
-                toast.style.display = 'none';
-            }, 3000);
+      });
+      
+      fileInput.addEventListener('change', handleFileUpload);
+      
+      // 拖拽上传
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+      });
+      
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+      });
+      
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+      });
+      
+      function highlight() {
+        dropArea.classList.add('bg-primary/5', 'border-primary');
+      }
+      
+      function unhighlight() {
+        dropArea.classList.remove('bg-primary/5', 'border-primary');
+      }
+      
+      dropArea.addEventListener('drop', handleDrop, false);
+      
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+          handleFileUpload({ target: { files } });
         }
-
-        // Show error message
-        function showError(message) {
-            document.getElementById('loadingIndicator').style.display = 'none';
-            document.getElementById('errorMessage').classList.remove('hidden');
-            document.getElementById('errorMessage').querySelector('p:last-child').textContent = message;
+      }
+      
+      // 模态框事件
+      closeModal.addEventListener('click', () => {
+        imageModal.classList.add('hidden');
+      });
+      
+      imageModal.addEventListener('click', (e) => {
+        if (e.target === imageModal) {
+          imageModal.classList.add('hidden');
         }
-
-        // Hide loading and error messages
-        function hideLoadingAndError() {
-            document.getElementById('loadingIndicator').style.display = 'none';
-            document.getElementById('errorMessage').classList.add('hidden');
+      });
+      
+      // 删除图片
+      deleteImageBtn.addEventListener('click', deleteSelectedImage);
+      
+      // 搜索功能
+      searchInput.addEventListener('input', searchImages);
+    });
+    
+    // 更新认证UI
+    function updateAuthUI(session) {
+      if (session) {
+        // 用户已登录
+        loginBtn.classList.add('hidden');
+        logoutBtn.classList.remove('hidden');
+        userInfo.classList.remove('hidden');
+        userName.textContent = session.user.user_metadata.username || session.user.email;
+        
+        if (session.user.user_metadata.avatar_url) {
+          userAvatar.src = session.user.user_metadata.avatar_url;
+        } else {
+          userAvatar.src = `https://picsum.photos/200?random=${session.user.id}`;
         }
-
-        // Connect wallet
-        async function connectWallet() {
-            try {
-                if ('phantom' in window) {
-                    provider = window.phantom?.solana;
-                    
-                    if (provider?.isPhantom) {
-                        const resp = await provider.connect();
-                        publicKey = resp.publicKey.toString();
-                        
-                        document.getElementById('walletButton').textContent = 
-                            publicKey.slice(0, 4) + '...' + publicKey.slice(-4);
-                        
-                        showToast('钱包连接成功', 'success');
-                        fetchGrids();
-                    }
-                } else {
-                    showToast('请安装 Phantom 钱包', 'error');
-                    window.open('https://phantom.app/', '_blank');
-                }
-            } catch (err) {
-                console.error(err);
-                showToast('连接钱包失败', 'error');
-            }
+        
+        // 加载用户图片
+        loadImages();
+      } else {
+        // 用户未登录
+        loginBtn.classList.remove('hidden');
+        logoutBtn.classList.add('hidden');
+        userInfo.classList.add('hidden');
+        imagesGrid.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        
+        // 添加登录提示
+        const loginPrompt = document.createElement('div');
+        loginPrompt.className = 'col-span-full text-center py-8';
+        loginPrompt.innerHTML = `
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 inline-block">
+            <p class="text-blue-700 font-medium mb-2">请登录以查看和上传图片</p>
+            <button onclick="loginWithGoogle()" class="btn-primary">
+              <i class="fa fa-google mr-2"></i>使用 Google 登录
+            </button>
+          </div>
+        `;
+        imagesGrid.appendChild(loginPrompt);
+      }
+    }
+    
+    // Google 登录
+    async function loginWithGoogle() {
+      try {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+        
+        if (error) {
+          throw error;
         }
-
-        // Initialize empty grids for display
-        function initializeEmptyGrids() {
-            grids = Array.from({ length: 64 }, (_, i) => ({
-                id: i,
-                position: i,
-                owner_wallet: null,
-                price: INITIAL_PRICE,
-                image_url: null,
-                is_for_sale: false,
-                sale_price: null
-            }));
-            renderGrids();
+      } catch (error) {
+        console.error('登录失败:', error);
+        alert('登录失败: ' + error.message);
+      }
+    }
+    
+    // 登出
+    async function logout() {
+      try {
+        const { error } = await supabase.auth.signOut();
+        
+        if (error) {
+          throw error;
         }
-
-        // Fetch grids from Supabase
-        async function fetchGrids() {
-            try {
-                console.log('Fetching grids from Supabase...');
-                
-                if (!supabase) {
-                    throw new Error('Supabase not initialized');
-                }
-
-                const { data, error } = await supabase
-                    .from('land_grids')
-                    .select('*')
-                    .order('position', { ascending: true });
-
-                if (error) {
-                    console.error('Supabase error:', error);
-                    throw error;
-                }
-
-                console.log('Fetched data:', data);
-
-                if (!data || data.length === 0) {
-                    console.log('No data found, initializing empty grids');
-                    initializeEmptyGrids();
-                    showToast('数据库为空，显示初始网格', 'warning');
-                } else {
-                    grids = data;
-                    renderGrids();
-                }
-
-                hideLoadingAndError();
-                updateStats();
-            } catch (error) {
-                console.error('Error fetching grids:', error);
-                // 即使获取失败也显示空网格
-                initializeEmptyGrids();
-                hideLoadingAndError();
-                showToast('无法连接到数据库，显示演示模式', 'warning');
-            }
+      } catch (error) {
+        console.error('登出失败:', error);
+        alert('登出失败: ' + error.message);
+      }
+    }
+    
+    // 处理文件上传
+    async function handleFileUpload(event) {
+      const files = event.target.files;
+      
+      if (files.length === 0) {
+        return;
+      }
+      
+      const file = files[0];
+      
+      // 验证文件类型和大小
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('请上传 JPG, PNG 或 WebP 格式的图片');
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {  // 10MB
+        alert('图片大小不能超过 10MB');
+        return;
+      }
+      
+      // 显示上传进度
+      dropArea.classList.add('hidden');
+      uploadProgress.classList.remove('hidden');
+      progressBar.style.width = '0%';
+      progressText.textContent = '上传中: 0%';
+      
+      try {
+        // 生成唯一文件名
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        // 上传到 Supabase 存储
+        const { error } = await supabase.storage
+          .from('images')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        if (error) {
+          throw error;
         }
-
-        // Fetch current price
-        async function fetchCurrentPrice() {
-            try {
-                if (!supabase) return;
-
-                const { data, error } = await supabase
-                    .from('price_history')
-                    .select('*')
-                    .order('created_at', { ascending: false })
-                    .limit(1);
-
-                if (data && data.length > 0) {
-                    currentBasePrice = data[0].base_price;
-                    document.getElementById('basePrice').textContent = currentBasePrice;
-                }
-            } catch (error) {
-                console.error('Error fetching price:', error);
-            }
+        
+        // 上传成功，刷新图片列表
+        loadImages();
+        
+        // 重置上传区域
+        setTimeout(() => {
+          progressBar.style.width = '100%';
+          progressText.textContent = '上传成功!';
+          
+          setTimeout(() => {
+            dropArea.classList.remove('hidden');
+            uploadProgress.classList.add('hidden');
+            fileInput.value = '';
+          }, 1000);
+        }, 500);
+        
+        showNotification('图片上传成功', 'success');
+      } catch (error) {
+        console.error('上传失败:', error);
+        alert('上传失败: ' + error.message);
+        
+        // 重置上传区域
+        dropArea.classList.remove('hidden');
+        uploadProgress.classList.add('hidden');
+        fileInput.value = '';
+      }
+    }
+    
+    // 加载图片
+    async function loadImages() {
+      try {
+        // 清空当前图片
+        imagesGrid.innerHTML = '';
+        
+        // 从存储桶获取图片列表
+        const { data, error } = await supabase.storage
+          .from('images')
+          .list('', {
+            limit: 100,
+            offset: 0,
+            sortBy: { column: 'created_at', order: 'desc' }
+          });
+        
+        if (error) {
+          throw error;
         }
-
-        // Render grids
-        function renderGrids() {
-            const container = document.getElementById('gridContainer');
-            container.innerHTML = '';
-
-            grids.forEach(grid => {
-                const cell = document.createElement('div');
-                cell.className = `grid-cell ${grid.owner_wallet === publicKey ? 'owned' : ''}`;
-                
-                let content = '<div class="flex-1 flex items-center justify-center">';
-                
-                if (grid.image_url) {
-                    content += `<img src="${grid.image_url}" alt="Grid ${grid.position}" class="w-full h-full object-cover rounded">`;
-                } else {
-                    content += `<span class="text-gray-500 text-sm">#${grid.position + 1}</span>`;
-                }
-                content += '</div>';
-
-                if (!grid.owner_wallet) {
-                    content += `<button class="buy-button" onclick="buyGrid(${grid.id})">${currentBasePrice} SOL</button>`;
-                } else if (grid.is_for_sale && grid.owner_wallet !== publicKey) {
-                    content += `<button class="buy-button" onclick="buyGrid(${grid.id})">购买 ${grid.sale_price} SOL</button>`;
-                }
-
-                cell.innerHTML = content;
-                
-                if (grid.owner_wallet === publicKey) {
-                    cell.onclick = () => openModal(grid);
-                }
-                
-                container.appendChild(cell);
-            });
+        
+        // 检查是否有图片
+        if (data.length === 0) {
+          emptyState.classList.remove('hidden');
+          return;
         }
-
-        // Buy grid
-        async function buyGrid(gridId) {
-            if (!publicKey) {
-                showToast('请先连接钱包', 'error');
-                return;
-            }
-
-            const grid = grids.find(g => g.id === gridId);
-            if (!grid) return;
-
-            try {
-                const connection = new solanaWeb3.Connection(solanaWeb3.clusterApiUrl('mainnet-beta'));
-                const fromPubkey = new solanaWeb3.PublicKey(publicKey);
-                const toPubkey = new solanaWeb3.PublicKey(grid.owner_wallet || DEVELOPER_WALLET);
-                const lamports = (grid.owner_wallet ? grid.sale_price : currentBasePrice) * solanaWeb3.LAMPORTS_PER_SOL;
-
-                const transaction = new solanaWeb3.Transaction().add(
-                    solanaWeb3.SystemProgram.transfer({
-                        fromPubkey,
-                        toPubkey,
-                        lamports
-                    })
-                );
-
-                const { blockhash } = await connection.getLatestBlockhash();
-                transaction.recentBlockhash = blockhash;
-                transaction.feePayer = fromPubkey;
-
-                const signedTransaction = await provider.signTransaction(transaction);
-                const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-                
-                await connection.confirmTransaction(signature);
-
-                // Update database
-                if (supabase) {
-                    const { error } = await supabase
-                        .from('land_grids')
-                        .update({
-                            owner_wallet: publicKey,
-                            is_for_sale: false,
-                            sale_price: null,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('id', grid.id);
-
-                    if (error) throw error;
-
-                    // Record transaction
-                    await supabase
-                        .from('transactions')
-                        .insert({
-                            from_wallet: publicKey,
-                            to_wallet: grid.owner_wallet || DEVELOPER_WALLET,
-                            grid_id: grid.id,
-                            price: grid.owner_wallet ? grid.sale_price : currentBasePrice,
-                            transaction_hash: signature
-                        });
-
-                    // Check if price should increase
-                    if (!grid.owner_wallet) {
-                        const soldCount = grids.filter(g => g.owner_wallet !== null).length + 1;
-                        if (soldCount % 8 === 0) {
-                            const newPrice = currentBasePrice * 2;
-                            await supabase
-                                .from('price_history')
-                                .insert({
-                                    base_price: newPrice,
-                                    grids_sold: soldCount
-                                });
-                            currentBasePrice = newPrice;
-                        }
-                    }
-                }
-
-                showToast('购买成功！', 'success');
-                fetchGrids();
-                fetchCurrentPrice();
-            } catch (error) {
-                console.error('Error buying grid:', error);
-                showToast('购买失败', 'error');
-            }
+        
+        // 隐藏空状态
+        emptyState.classList.add('hidden');
+        
+        // 渲染图片
+        data.forEach(image => {
+          // 获取图片的公共URL
+          const { publicURL } = supabase.storage
+            .from('images')
+            .getPublicUrl(image.name);
+          
+          // 创建图片卡片
+          const card = document.createElement('div');
+          card.className = 'image-card group';
+          card.dataset.filename = image.name;
+          
+          card.innerHTML = `
+            <div class="aspect-square overflow-hidden">
+              <img src="${publicURL}" alt="${image.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+              <p class="text-white text-sm font-medium truncate">${image.name}</p>
+              <p class="text-white/80 text-xs">${formatDate(image.last_modified)}</p>
+            </div>
+          `;
+          
+          // 添加点击事件
+          card.addEventListener('click', () => {
+            openImageModal(image.name, publicURL, image.last_modified);
+          });
+          
+          imagesGrid.appendChild(card);
+        });
+      } catch (error) {
+        console.error('加载图片失败:', error);
+        alert('加载图片失败: ' + error.message);
+      }
+    }
+    
+    // 打开图片模态框
+    function openImageModal(filename, url, createdAt) {
+      modalImage.src = url;
+      modalFilename.textContent = filename;
+      modalCreatedAt.textContent = formatDate(createdAt);
+      selectedImage = filename;
+      imageModal.classList.remove('hidden');
+    }
+    
+    // 删除选中的图片
+    async function deleteSelectedImage() {
+      if (!selectedImage) {
+        return;
+      }
+      
+      if (!confirm('确定要删除这张图片吗？此操作无法撤销。')) {
+        return;
+      }
+      
+      try {
+        const { error } = await supabase.storage
+          .from('images')
+          .remove([selectedImage]);
+        
+        if (error) {
+          throw error;
         }
-
-        // Open modal
-        function openModal(grid) {
-            selectedGrid = grid;
-            document.getElementById('modalGridId').textContent = grid.position + 1;
-            document.getElementById('modal').classList.add('active');
+        
+        // 关闭模态框并刷新图片列表
+        imageModal.classList.add('hidden');
+        loadImages();
+        
+        showNotification('图片已删除', 'success');
+      } catch (error) {
+        console.error('删除失败:', error);
+        alert('删除失败: ' + error.message);
+      }
+    }
+    
+    // 搜索图片
+    async function searchImages() {
+      const query = searchInput.value.toLowerCase().trim();
+      
+      if (!query) {
+        // 如果搜索框为空，加载所有图片
+        loadImages();
+        return;
+      }
+      
+      try {
+        // 从存储桶获取图片列表
+        const { data, error } = await supabase.storage
+          .from('images')
+          .list('', {
+            limit: 100,
+            offset: 0,
+            sortBy: { column: 'created_at', order: 'desc' }
+          });
+        
+        if (error) {
+          throw error;
         }
-
-        // Close modal
-        function closeModal() {
-            document.getElementById('modal').classList.remove('active');
-            document.getElementById('imageUrl').value = '';
-            document.getElementById('salePrice').value = '';
-            selectedGrid = null;
+        
+        // 过滤图片
+        const filteredImages = data.filter(image => 
+          image.name.toLowerCase().includes(query)
+        );
+        
+        // 清空当前图片
+        imagesGrid.innerHTML = '';
+        
+        // 检查是否有匹配的图片
+        if (filteredImages.length === 0) {
+          emptyState.classList.remove('hidden');
+          emptyState.innerHTML = `
+            <i class="fa fa-search text-4xl mb-4 text-gray-400"></i>
+            <p>未找到匹配的图片</p>
+            <p class="text-sm mt-2">尝试使用不同的关键词进行搜索</p>
+          `;
+          return;
         }
-
-        // Update grid
-        async function updateGrid() {
-            if (!selectedGrid || !publicKey || !supabase) {
-                showToast('无法更新：数据库未连接', 'error');
-                return;
-            }
-
-            const imageUrl = document.getElementById('imageUrl').value;
-            const salePrice = document.getElementById('salePrice').value;
-
-            try {
-                const updates = {
-                    updated_at: new Date().toISOString()
-                };
-
-                if (imageUrl) updates.image_url = imageUrl;
-                if (salePrice) {
-                    updates.is_for_sale = true;
-                    updates.sale_price = parseFloat(salePrice);
-                }
-
-                const { error } = await supabase
-                    .from('land_grids')
-                    .update(updates)
-                    .eq('id', selectedGrid.id);
-
-                if (error) throw error;
-
-                showToast('更新成功！', 'success');
-                closeModal();
-                fetchGrids();
-            } catch (error) {
-                console.error('Error updating grid:', error);
-                showToast('更新失败', 'error');
-            }
-        }
-
-        // Update stats
-        function updateStats() {
-            const soldCount = grids.filter(g => g.owner_wallet !== null).length;
-            document.getElementById('soldCount').textContent = soldCount;
-        }
-
-        // Show sections
-        function showHome() {
-            document.getElementById('homeSection').style.display = 'block';
-            document.getElementById('gridContainer').style.display = 'grid';
-            document.getElementById('myLandsSection').style.display = 'none';
-            document.getElementById('marketplaceSection').style.display = 'none';
-        }
-
-        function showMyLands() {
-            if (!publicKey) {
-                showToast('请先连接钱包', 'error');
-                return;
-            }
-
-            document.getElementById('homeSection').style.display = 'none';
-            document.getElementById('gridContainer').style.display = 'none';
-            document.getElementById('marketplaceSection').style.display = 'none';
-            document.getElementById('myLandsSection').style.display = 'block';
-
-            const myLands = grids.filter(g => g.owner_wallet === publicKey);
-            const container = document.getElementById('myLandsGrid');
-            container.innerHTML = '';
-
-            if (myLands.length === 0) {
-                container.innerHTML = '<p class="col-span-full text-center text-gray-400">你还没有任何土地</p>';
-            } else {
-                myLands.forEach(grid => {
-                    const card = document.createElement('div');
-                    card.className = 'bg-gray-800 rounded-lg p-4 cursor-pointer hover:bg-gray-700 transition';
-                    card.onclick = () => openModal(grid);
-                    
-                    let content = '<div class="aspect-square mb-2">';
-                    if (grid.image_url) {
-                        content += `<img src="${grid.image_url}" alt="Grid ${grid.position}" class="w-full h-full object-cover rounded">`;
-                    } else {
-                        content += `<div class="w-full h-full bg-gray-700 rounded flex items-center justify-center text-2xl font-bold text-gray-500">#${grid.position + 1}</div>`;
-                    }
-                    content += '</div>';
-                    content += `<p class="font-semibold">土地 #${grid.position + 1}</p>`;
-                    if (grid.is_for_sale) {
-                        content += `<p class="text-green-500">出售中: ${grid.sale_price} SOL</p>`;
-                    }
-                    
-                    card.innerHTML = content;
-                    container.appendChild(card);
-                });
-            }
-        }
-
-        function showMarketplace() {
-            document.getElementById('homeSection').style.display = 'none';
-            document.getElementById('gridContainer').style.display = 'none';
-            document.getElementById('myLandsSection').style.display = 'none';
-            document.getElementById('marketplaceSection').style.display = 'block';
-
-            const forSale = grids.filter(g => g.is_for_sale);
-            const container = document.getElementById('marketplaceGrid');
-            container.innerHTML = '';
-
-            if (forSale.length === 0) {
-                container.innerHTML = '<p class="col-span-full text-center text-gray-400">暂时没有土地在出售</p>';
-            } else {
-                forSale.forEach(grid => {
-                    const card = document.createElement('div');
-                    card.className = 'bg-gray-800 rounded-lg p-4';
-                    
-                    let content = '<div class="aspect-square mb-3">';
-                    if (grid.image_url) {
-                        content += `<img src="${grid.image_url}" alt="Grid ${grid.position}" class="w-full h-full object-cover rounded">`;
-                    } else {
-                        content += `<div class="w-full h-full bg-gray-700 rounded flex items-center justify-center text-3xl font-bold text-gray-500">#${grid.position + 1}</div>`;
-                    }
-                    content += '</div>';
-                    content += `<p class="font-semibold">土地 #${grid.position + 1}</p>`;
-                    content += `<p class="text-sm text-gray-400 mb-2">卖家: ${grid.owner_wallet.slice(0, 4)}...${grid.owner_wallet.slice(-4)}</p>`;
-                    content += '<div class="flex items-center justify-between">';
-                    content += `<span class="text-lg font-bold text-green-500">${grid.sale_price} SOL</span>`;
-                    content += `<button class="buy-button" onclick="buyGrid(${grid.id})" ${grid.owner_wallet === publicKey ? 'disabled' : ''}>购买</button>`;
-                    content += '</div>';
-                    
-                    card.innerHTML = content;
-                    container.appendChild(card);
-                });
-            }
-        }
-
-        // Initialize on load
-        window.onload = function() {
-            console.log('Initializing application...');
-            
-            // 先显示空网格
-            initializeEmptyGrids();
-            
-            // 尝试初始化 Supabase
-            setTimeout(() => {
-                initSupabase();
-                if (supabase) {
-                    fetchGrids();
-                    fetchCurrentPrice();
-                } else {
-                    hideLoadingAndError();
-                    showToast('运行在演示模式', 'warning');
-                }
-            }, 100);
-        };
-    </script>
+        
+        // 隐藏空状态
+        emptyState.classList.add('hidden');
+        
+        // 渲染匹配的图片
+        filteredImages.forEach(image => {
+          const { publicURL } = supabase.storage
+            .from('images')
+            .getPublicUrl(image.name);
+          
+          const card = document.createElement('div');
+          card.className = 'image-card group';
+          card.dataset.filename = image.name;
+          
+          card.innerHTML = `
+            <div class="aspect-square overflow-hidden">
+              <img src="${publicURL}" alt="${image.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+              <p class="text-white text-sm font-medium truncate">${image.name}</p>
+              <p class="text-white/80 text-xs">${formatDate(image.last_modified)}</p>
+            </div>
+          `;
+          
+          card.addEventListener('click', () => {
+            openImageModal(image.name, publicURL, image.last_modified);
+          });
+          
+          imagesGrid.appendChild(card);
+        });
+      } catch (error) {
+        console.error('搜索失败:', error);
+        alert('搜索失败: ' + error.message);
+      }
+    }
+    
+    // 格式化日期
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    // 显示通知
+    function showNotification(message, type = 'info') {
+      // 创建通知元素
+      const notification = document.createElement('div');
+      notification.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full z-50 ${
+        type === 'success' ? 'bg-green-500 text-white' : 
+        type === 'error' ? 'bg-red-500 text-white' : 
+        'bg-blue-500 text-white'
+      }`;
+      
+      notification.innerHTML = `
+        <div class="flex items-center">
+          <i class="fa fa-${
+            type === 'success' ? 'check-circle' : 
+            type === 'error' ? 'exclamation-circle' : 
+            'info-circle'
+          } mr-2"></i>
+          <span>${message}</span>
+        </div>
+      `;
+      
+      // 添加到页面
+      document.body.appendChild(notification);
+      
+      // 显示动画
+      setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+      }, 10);
+      
+      // 3秒后隐藏
+      setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 300);
+      }, 3000);
+    }
+    
+    // 绑定登出按钮事件
+    logoutBtn.addEventListener('click', logout);
+  </script>
 </body>
-</html> 
+</html>    
