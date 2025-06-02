@@ -116,7 +116,8 @@
       const cooldown = tokenAmount > 0 ? COOLDOWN_HOLDER : COOLDOWN_NONHOLDER;
       const now = Date.now();
       if (now - lastUploadTime < cooldown * 1000) {
-        alert(`请等待${Math.ceil((cooldown*1000 - (now-lastUploadTime))/1000)}秒后再上传`);
+        const remain = Math.ceil((cooldown*1000 - (now-lastUploadTime))/1000);
+        showCooldownModal(remain);
         return false;
       }
       lastUploadTime = now;
@@ -192,7 +193,8 @@
         const now = Date.now();
         const cooldown = COOLDOWN_NONHOLDER;
         if (now - lastUploadTime < cooldown * 1000) {
-          alert(`请等待${Math.ceil((cooldown*1000 - (now-lastUploadTime))/1000)}秒后再上传`);
+          const remain = Math.ceil((cooldown*1000 - (now-lastUploadTime))/1000);
+          showCooldownModal(remain);
           return;
         }
         lastUploadTime = now;
@@ -303,6 +305,38 @@
           document.body.removeChild(notification);
         }, 300);
       }, 3000);
+    }
+
+    // 冷却弹窗
+    function showCooldownModal(remainSeconds) {
+      let modal = document.getElementById('cooldown-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'cooldown-modal';
+        modal.className = 'fixed inset-0 flex items-center justify-center z-50';
+        modal.innerHTML = `
+          <div class="bg-white rounded-lg shadow-lg px-8 py-6 flex flex-col items-center">
+            <i class='fa fa-clock-o text-3xl text-primary mb-2'></i>
+            <div class='text-lg font-semibold mb-1'>冷却中</div>
+            <div id='cooldown-remaining' class='text-primary text-2xl font-bold mb-2'></div>
+            <div class='text-gray-500 text-sm'>请等待后再上传图片</div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      } else {
+        modal.classList.remove('hidden');
+      }
+      const remainDiv = document.getElementById('cooldown-remaining');
+      if (remainDiv) remainDiv.textContent = `${remainSeconds} 秒`;
+      let left = remainSeconds;
+      const timer = setInterval(() => {
+        left--;
+        if (remainDiv) remainDiv.textContent = `${left} 秒`;
+        if (left <= 0) {
+          clearInterval(timer);
+          modal.classList.add('hidden');
+        }
+      }, 1000);
     }
   </script>
 </body>
