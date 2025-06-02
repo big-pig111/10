@@ -235,12 +235,14 @@
         return;
       }
       const fileName = `cell-${x}-${y}`;
+      // Always try to remove old image first (ignore error)
       await supabase.storage.from('images').remove([fileName]);
       const { error } = await supabase.storage.from('images').upload(fileName, file, { upsert: true });
       if (error) {
         alert('Upload failed: ' + error.message);
         return;
       }
+      // Show new image immediately
       const { data } = supabase.storage.from('images').getPublicUrl(fileName);
       const publicURL = data.publicUrl;
       const img = document.getElementById(`img-${x}-${y}`);
@@ -248,9 +250,34 @@
       img.classList.remove('hidden');
       document.getElementById(`upload-icon-${x}-${y}`).classList.add('hidden');
       showNotification('Image uploaded successfully', 'success');
+      // Start auto-refresh for this cell
+      startCellAutoRefresh(x, y);
     }
 
-    // Auto load all cell images (only load existing images)
+    // Store timers for each cell
+    const cellRefreshTimers = {};
+
+    // Start auto-refresh for a cell (every second)
+    function startCellAutoRefresh(x, y) {
+      const key = `${x},${y}`;
+      if (cellRefreshTimers[key]) {
+        clearInterval(cellRefreshTimers[key]);
+      }
+      cellRefreshTimers[key] = setInterval(async () => {
+        const fileName = `cell-${x}-${y}`;
+        const { data } = supabase.storage.from('images').getPublicUrl(fileName);
+        const publicURL = data.publicUrl + `?t=${Date.now()}`; // prevent cache
+        const img = document.getElementById(`img-${x}-${y}`);
+        if (img) {
+          img.src = publicURL;
+          img.classList.remove('hidden');
+          const icon = document.getElementById(`upload-icon-${x}-${y}`);
+          if (icon) icon.classList.add('hidden');
+        }
+      }, 1000);
+    }
+
+    // When loading all images, also start auto-refresh for each cell that has an image
     async function loadAllCellImages() {
       // Only load existing images to avoid 404s
       const { data, error } = await supabase.storage.from('images').list('', { limit: 4096 });
@@ -268,6 +295,8 @@
             img.classList.remove('hidden');
             const icon = document.getElementById(`upload-icon-${x}-${y}`);
             if (icon) icon.classList.add('hidden');
+            // Start auto-refresh for this cell
+            startCellAutoRefresh(x, y);
           }
         }
       });
