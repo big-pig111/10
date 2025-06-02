@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>图片上传器</title>
+  <title>64x64 图片网格上传</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.31.0/dist/umd/supabase.min.js"></script>
@@ -32,7 +32,10 @@
         @apply bg-primary text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 hover:bg-primary/90 hover:shadow-md active:scale-95;
       }
     }
-    #wallet-menu { min-width: 180px; }
+    #images-grid {
+      overflow: auto;
+      background: #fff;
+    }
   </style>
 </head>
 <body class="font-inter bg-light min-h-screen flex flex-col">
@@ -43,24 +46,16 @@
         <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
           <i class="fa fa-image text-white text-xl"></i>
         </div>
-        <h1 class="text-xl font-bold text-dark">图片上传器</h1>
+        <h1 class="text-xl font-bold text-dark">64×64 图片网格上传</h1>
       </div>
       <button id="wallet-connect-btn" class="btn-primary ml-4">连接钱包</button>
     </div>
   </header>
 
   <!-- 主内容区 -->
-  <main class="flex-grow flex flex-col items-center justify-center py-8">
-    <h2 class="text-xl font-bold text-dark mb-6">8×8 图片网格上传</h2>
-    <div id="images-grid" class="grid grid-cols-8 grid-rows-8 gap-0 w-[1024px] h-[1024px] bg-white shadow-lg border border-gray-300"></div>
+  <main id="main-area" class="flex-grow flex flex-col items-center justify-center p-0 m-0 w-full h-full">
+    <div id="images-grid" class="grid bg-white w-full h-full"></div>
   </main>
-
-  <!-- 页脚 -->
-  <footer class="bg-dark text-white py-8 mt-12">
-    <div class="container mx-auto px-4 text-center">
-      <p>&copy; 2025 图片上传器 | 使用 Supabase 构建</p>
-    </div>
-  </footer>
 
   <!-- 图片预览模态框 -->
   <div id="image-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
@@ -83,16 +78,50 @@
   </div>
 
   <script>
-    // 配置 Supabase 和全局变量
+    // 配置 Supabase
     const supabase = window.supabase.createClient(
       'https://varxwothzqvxzskyjrrn.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhcnh3b3RoenF2eHpza3lqcnJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg3OTkwNTUsImV4cCI6MjA2NDM3NTA1NX0.N6DfiR5e_426cnFED3_KWJlY4chtqofeNy-QkA4OdLI'
     );
+    const CELL_SIZE = 20; // 固定格子像素
+    const COLS = 80; // 固定列数
+    const ROWS = 40; // 固定行数
     const imagesGrid = document.getElementById('images-grid');
-    const GRID_SIZE = 8;
-    const SOL_RECEIVER = '2kvez4gd2wsS5KJNXZ1m3puqo9QuKAKKRKAArwRGcF7Q';
-    const SOL_AMOUNT = 0.05;
-    let currentWalletAddress = null;
+
+    // SPL代币冷却限制配置
+    const TOKEN_MINT = 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263';
+    const COOLDOWN_HOLDER = 20; // 秒
+    const COOLDOWN_NONHOLDER = 40; // 秒
+    let lastUploadTime = 0;
+
+    // 查询SPL代币余额
+    async function getTokenBalance(userAddress) {
+      const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
+      const publicKey = new solanaWeb3.PublicKey(userAddress);
+      const tokenMint = new solanaWeb3.PublicKey(TOKEN_MINT);
+      const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
+        publicKey,
+        { mint: tokenMint }
+      );
+      let tokenAmount = 0;
+      if (tokenAccounts.value.length > 0) {
+        tokenAmount = tokenAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+      }
+      return tokenAmount;
+    }
+
+    // 上传前判断
+    async function canUpload(userAddress) {
+      const tokenAmount = await getTokenBalance(userAddress);
+      const cooldown = tokenAmount > 0 ? COOLDOWN_HOLDER : COOLDOWN_NONHOLDER;
+      const now = Date.now();
+      if (now - lastUploadTime < cooldown * 1000) {
+        alert(`请等待${Math.ceil((cooldown*1000 - (now-lastUploadTime))/1000)}秒后再上传`);
+        return false;
+      }
+      lastUploadTime = now;
+      return true;
+    }
 
     // 钱包连接按钮逻辑
     document.addEventListener('DOMContentLoaded', () => {
@@ -104,116 +133,70 @@
         if (window.solana && window.solana.isPhantom) {
           try {
             const resp = await window.solana.connect();
-            currentWalletAddress = resp.publicKey.toString();
-            walletBtn.textContent = shortAddress(currentWalletAddress);
+            walletBtn.textContent = shortAddress(resp.publicKey.toString());
           } catch (e) {}
         } else {
           alert('请安装 Phantom 钱包');
           window.open('https://phantom.app/', '_blank');
         }
       });
-      // 页面加载时自动检测已连接钱包
-      if (window.solana && window.solana.isPhantom && window.solana.isConnected) {
-        try {
-          const addr = window.solana.publicKey?.toString();
-          if (addr) {
-            currentWalletAddress = addr;
-            walletBtn.textContent = shortAddress(addr);
-          }
-        } catch (e) {}
-      }
     });
 
-    // 连接Phantom钱包
-    async function connectWallet() {
-      if (window.solana && window.solana.isPhantom) {
-        const resp = await window.solana.connect();
-        return resp.publicKey.toString();
-      } else {
-        alert('请安装 Phantom 钱包');
-        throw new Error('No wallet');
-      }
-    }
-
-    // 支付SOL
-    async function paySol(toAddress, amountSol) {
-      const provider = window.solana;
-      const connection = new solanaWeb3.Connection('https://solana-mainnet.g.alchemy.com/v2/qdb04ZyNT_ENXooqO8rN8');
-      const fromPubkey = provider.publicKey;
-      const toPubkey = new solanaWeb3.PublicKey(toAddress);
-      const transaction = new solanaWeb3.Transaction().add(
-        solanaWeb3.SystemProgram.transfer({
-          fromPubkey,
-          toPubkey,
-          lamports: solanaWeb3.LAMPORTS_PER_SOL * amountSol,
-        })
-      );
-      transaction.feePayer = fromPubkey;
-      let { blockhash } = await connection.getRecentBlockhash();
-      transaction.recentBlockhash = blockhash;
-      const signed = await provider.signTransaction(transaction);
-      const txid = await connection.sendRawTransaction(signed.serialize());
-      await connection.confirmTransaction(txid);
-      return txid;
-    }
-
-    // 渲染64个格子
-    for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
-      const cell = document.createElement('div');
-      cell.className = `relative w-[128px] h-[128px] flex items-center justify-center bg-gray-50 overflow-hidden`;
-      cell.dataset.index = i;
-      cell.innerHTML = `
-        <input type="file" accept="image/*" class="hidden" id="file-input-${i}">
-        <label for="file-input-${i}" class="absolute inset-0 flex items-center justify-center cursor-pointer transition group">
-          <span class="text-gray-400 text-2xl z-10 group-hover:text-primary" id="upload-icon-${i}">
-            <i class="fa fa-cloud-upload"></i>
-          </span>
-          <img id="img-${i}" class="absolute inset-0 w-full h-full object-cover hidden" draggable="false" />
-        </label>
-      `;
-      imagesGrid.appendChild(cell);
-      // 事件绑定
-      const fileInput = cell.querySelector(`#file-input-${i}`);
-      const label = cell.querySelector(`label[for="file-input-${i}"]`);
-      label.addEventListener('click', async (e) => {
-        e.preventDefault();
-        // 1. 连接钱包
-        let userAddress;
-        try {
-          userAddress = await connectWallet();
-          currentWalletAddress = userAddress;
-          document.getElementById('wallet-connect-btn').textContent = userAddress.slice(0,4)+'...'+userAddress.slice(-4);
-        } catch (e) { return; }
-        // 2. 查询格子 owner
-        let { data: ownerRow } = await supabase
-          .from('grid_owners')
-          .select('owner_address')
-          .eq('cell_index', i)
-          .single();
-        if (!ownerRow) {
-          // 3. 没有 owner，支付 0.05 SOL
-          try {
-            await paySol(SOL_RECEIVER, SOL_AMOUNT);
-          } catch (e) {
-            alert('支付失败或取消，无法上传');
-            return;
-          }
-          // 4. 支付成功，写入 owner
-          await supabase.from('grid_owners').insert([{ cell_index: i, owner_address: userAddress }]);
-        } else if (ownerRow.owner_address !== userAddress) {
-          alert('此格子已被其他用户占有，您无权上传');
-          return;
+    // 固定网格数量，固定格子为20x20像素
+    function renderGrid() {
+      imagesGrid.innerHTML = '';
+      imagesGrid.style.gridTemplateColumns = `repeat(${COLS}, ${CELL_SIZE}px)`;
+      imagesGrid.style.gridTemplateRows = `repeat(${ROWS}, ${CELL_SIZE}px)`;
+      imagesGrid.style.width = `${COLS * CELL_SIZE}px`;
+      imagesGrid.style.height = `${ROWS * CELL_SIZE}px`;
+      for (let y = 0; y < ROWS; y++) {
+        for (let x = 0; x < COLS; x++) {
+          const cell = document.createElement('div');
+          cell.className = `relative flex items-center justify-center bg-gray-50 overflow-hidden border border-gray-100`;
+          cell.style.width = `${CELL_SIZE}px`;
+          cell.style.height = `${CELL_SIZE}px`;
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          cell.innerHTML = `
+            <input type="file" accept="image/*" class="hidden" id="file-input-${x}-${y}">
+            <label for="file-input-${x}-${y}" class="absolute inset-0 flex items-center justify-center cursor-pointer transition group">
+              <span class="text-gray-400 text-lg z-10 group-hover:text-primary" id="upload-icon-${x}-${y}">
+                <i class="fa fa-cloud-upload"></i>
+              </span>
+              <img id="img-${x}-${y}" class="absolute inset-0 w-full h-full object-cover hidden" draggable="false" />
+            </label>
+          `;
+          imagesGrid.appendChild(cell);
+          // 事件绑定
+          const fileInput = cell.querySelector(`#file-input-${x}-${y}`);
+          fileInput.addEventListener('change', (e) => handleCellUpload(e, x, y));
         }
-        // 5. 允许选择图片
-        fileInput.click();
-      });
-      fileInput.addEventListener('change', (e) => handleCellUpload(e, i));
+      }
+      // 自动加载所有格子的图片
+      loadAllCellImages();
     }
 
-    // 上传图片（只负责图片校验和上传，不再负责支付）
-    async function handleCellUpload(event, i) {
+    // 上传图片（无支付、无归属校验）
+    async function handleCellUpload(event, x, y) {
       const file = event.target.files[0];
       if (!file) return;
+      let userAddress = null;
+      if (window.solana && window.solana.isPhantom && window.solana.isConnected && window.solana.publicKey) {
+        userAddress = window.solana.publicKey.toString();
+      }
+      // 冷却判断
+      if (userAddress) {
+        if (!await canUpload(userAddress)) return;
+      } else {
+        // 未连接钱包，直接40秒冷却
+        const now = Date.now();
+        const cooldown = COOLDOWN_NONHOLDER;
+        if (now - lastUploadTime < cooldown * 1000) {
+          alert(`请等待${Math.ceil((cooldown*1000 - (now-lastUploadTime))/1000)}秒后再上传`);
+          return;
+        }
+        lastUploadTime = now;
+      }
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
         alert('请上传 JPG, PNG 或 WebP 格式的图片');
@@ -223,17 +206,7 @@
         alert('图片大小不能超过 10MB');
         return;
       }
-      // 只允许归属用户上传
-      let { data: ownerRow } = await supabase
-        .from('grid_owners')
-        .select('owner_address')
-        .eq('cell_index', i)
-        .single();
-      if (!ownerRow || ownerRow.owner_address !== currentWalletAddress) {
-        alert('此格子已被其他用户占有，您无权上传');
-        return;
-      }
-      const fileName = `cell-${i}`;
+      const fileName = `cell-${x}-${y}`;
       await supabase.storage.from('images').remove([fileName]);
       const { error } = await supabase.storage.from('images').upload(fileName, file, { upsert: true });
       if (error) {
@@ -242,33 +215,38 @@
       }
       const { data } = supabase.storage.from('images').getPublicUrl(fileName);
       const publicURL = data.publicUrl;
-      const img = document.getElementById(`img-${i}`);
+      const img = document.getElementById(`img-${x}-${y}`);
       img.src = publicURL;
       img.classList.remove('hidden');
-      document.getElementById(`upload-icon-${i}`).classList.add('hidden');
+      document.getElementById(`upload-icon-${x}-${y}`).classList.add('hidden');
       showNotification('图片上传成功', 'success');
     }
 
-    // 自动加载所有格子的图片
+    // 自动加载所有格子的图片（只加载已存在的图片）
     async function loadAllCellImages() {
-      for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
-        const fileName = `cell-${i}`;
-        const { data } = supabase.storage.from('images').getPublicUrl(fileName);
-        const publicURL = data.publicUrl;
-        if (publicURL) {
-          try {
-            const res = await fetch(publicURL, { method: 'HEAD' });
-            if (res.ok) {
-              const img = document.getElementById(`img-${i}`);
-              img.src = publicURL;
-              img.classList.remove('hidden');
-              document.getElementById(`upload-icon-${i}`).classList.add('hidden');
-            }
-          } catch (e) {}
+      // 只加载已存在的图片，避免大量404
+      const { data, error } = await supabase.storage.from('images').list('', { limit: 4096 });
+      if (error || !data) return;
+      data.forEach(image => {
+        const match = image.name.match(/^cell-(\d+)-(\d+)$/);
+        if (match) {
+          const x = parseInt(match[1], 10);
+          const y = parseInt(match[2], 10);
+          const { data } = supabase.storage.from('images').getPublicUrl(image.name);
+          const publicURL = data.publicUrl;
+          const img = document.getElementById(`img-${x}-${y}`);
+          if (img) {
+            img.src = publicURL;
+            img.classList.remove('hidden');
+            const icon = document.getElementById(`upload-icon-${x}-${y}`);
+            if (icon) icon.classList.add('hidden');
+          }
         }
-      }
+      });
     }
-    document.addEventListener('DOMContentLoaded', loadAllCellImages);
+
+    // 初始化渲染
+    document.addEventListener('DOMContentLoaded', renderGrid);
 
     // 图片预览模态框
     const imageModal = document.getElementById('image-modal');
