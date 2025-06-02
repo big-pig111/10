@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>64x64 图片网格上传</title>
+  <title>64x64 Image Grid Uploader</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.31.0/dist/umd/supabase.min.js"></script>
@@ -39,25 +39,28 @@
   </style>
 </head>
 <body class="font-inter bg-light min-h-screen flex flex-col">
-  <!-- 顶部导航栏 -->
+  <!-- Top Navigation Bar -->
   <header class="bg-white shadow-sm sticky top-0 z-50">
     <div class="container mx-auto px-4 py-3 flex items-center justify-between">
       <div class="flex items-center space-x-2">
         <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
           <i class="fa fa-image text-white text-xl"></i>
         </div>
-        <h1 class="text-xl font-bold text-dark">64×64 图片网格上传</h1>
+        <h1 class="text-xl font-bold text-dark">64×64 Image Grid Uploader</h1>
       </div>
-      <button id="wallet-connect-btn" class="btn-primary ml-4">连接钱包</button>
+      <div class="flex items-center space-x-2">
+        <span id="token-balance" class="text-sm text-gray-600"></span>
+        <button id="wallet-connect-btn" class="btn-primary ml-4">Connect Wallet</button>
+      </div>
     </div>
   </header>
 
-  <!-- 主内容区 -->
+  <!-- Main Content Area -->
   <main id="main-area" class="flex-grow flex flex-col items-center justify-center p-0 m-0 w-full h-full">
     <div id="images-grid" class="grid bg-white w-full h-full"></div>
   </main>
 
-  <!-- 图片预览模态框 -->
+  <!-- Image Preview Modal -->
   <div id="image-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
     <div class="relative max-w-4xl w-full mx-4">
       <button id="close-modal" class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors">
@@ -65,7 +68,7 @@
       </button>
       <div class="bg-white rounded-lg overflow-hidden">
         <div class="relative" style="padding-bottom: 75%;">
-          <img id="modal-image" src="" alt="图片预览" class="absolute inset-0 w-full h-full object-contain">
+          <img id="modal-image" src="" alt="Image Preview" class="absolute inset-0 w-full h-full object-contain">
         </div>
         <div class="p-4 flex justify-between items-center">
           <div>
@@ -88,13 +91,13 @@
     const ROWS = 40; // 固定行数
     const imagesGrid = document.getElementById('images-grid');
 
-    // SPL代币冷却限制配置
+    // SPL Token Cooldown Config
     const TOKEN_MINT = 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263';
-    const COOLDOWN_HOLDER = 20; // 秒
-    const COOLDOWN_NONHOLDER = 40; // 秒
+    const COOLDOWN_HOLDER = 20; // seconds
+    const COOLDOWN_NONHOLDER = 40; // seconds
     let lastUploadTime = 0;
 
-    // 查询SPL代币余额
+    // Query SPL Token Balance
     async function getTokenBalance(userAddress) {
       const connection = new solanaWeb3.Connection('https://solana-mainnet.g.alchemy.com/v2/qdb04ZyNT_ENXooqO8rN8');
       const publicKey = new solanaWeb3.PublicKey(userAddress);
@@ -108,6 +111,22 @@
         tokenAmount = tokenAccounts.value[0].account.data.parsed.info.tokenAmount.uiAmount;
       }
       return tokenAmount;
+    }
+
+    // Show token balance in header
+    async function updateTokenBalanceDisplay(userAddress) {
+      const balanceSpan = document.getElementById('token-balance');
+      if (!userAddress) {
+        balanceSpan.textContent = '';
+        return;
+      }
+      balanceSpan.textContent = 'Checking token...';
+      try {
+        const amount = await getTokenBalance(userAddress);
+        balanceSpan.textContent = `Token: ${amount}`;
+      } catch (e) {
+        balanceSpan.textContent = 'Token: N/A';
+      }
     }
 
     // 上传前判断
@@ -124,9 +143,10 @@
       return true;
     }
 
-    // 钱包连接按钮逻辑
+    // Wallet connect button logic
     document.addEventListener('DOMContentLoaded', () => {
       const walletBtn = document.getElementById('wallet-connect-btn');
+      const balanceSpan = document.getElementById('token-balance');
       function shortAddress(addr) {
         return addr ? addr.slice(0, 4) + '...' + addr.slice(-4) : '';
       }
@@ -135,15 +155,21 @@
           try {
             const resp = await window.solana.connect();
             walletBtn.textContent = shortAddress(resp.publicKey.toString());
+            await updateTokenBalanceDisplay(resp.publicKey.toString());
           } catch (e) {}
         } else {
-          alert('请安装 Phantom 钱包');
+          alert('Please install Phantom Wallet');
           window.open('https://phantom.app/', '_blank');
         }
       });
+      // If already connected, show address and balance
+      if (window.solana && window.solana.isPhantom && window.solana.isConnected && window.solana.publicKey) {
+        walletBtn.textContent = shortAddress(window.solana.publicKey.toString());
+        updateTokenBalanceDisplay(window.solana.publicKey.toString());
+      }
     });
 
-    // 固定网格数量，固定格子为20x20像素
+    // Render fixed grid, each cell 20x20px
     function renderGrid() {
       imagesGrid.innerHTML = '';
       imagesGrid.style.gridTemplateColumns = `repeat(${COLS}, ${CELL_SIZE}px)`;
@@ -168,16 +194,16 @@
             </label>
           `;
           imagesGrid.appendChild(cell);
-          // 事件绑定
+          // Bind event
           const fileInput = cell.querySelector(`#file-input-${x}-${y}`);
           fileInput.addEventListener('change', (e) => handleCellUpload(e, x, y));
         }
       }
-      // 自动加载所有格子的图片
+      // Auto load all cell images
       loadAllCellImages();
     }
 
-    // 上传图片（无支付、无归属校验）
+    // Upload image (no payment, no ownership check)
     async function handleCellUpload(event, x, y) {
       const file = event.target.files[0];
       if (!file) return;
@@ -185,11 +211,11 @@
       if (window.solana && window.solana.isPhantom && window.solana.isConnected && window.solana.publicKey) {
         userAddress = window.solana.publicKey.toString();
       }
-      // 冷却判断
+      // Cooldown check
       if (userAddress) {
         if (!await canUpload(userAddress)) return;
       } else {
-        // 未连接钱包，直接40秒冷却
+        // Not connected, use 40s cooldown
         const now = Date.now();
         const cooldown = COOLDOWN_NONHOLDER;
         if (now - lastUploadTime < cooldown * 1000) {
@@ -201,18 +227,18 @@
       }
       const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!allowedTypes.includes(file.type)) {
-        alert('请上传 JPG, PNG 或 WebP 格式的图片');
+        alert('Please upload JPG, PNG or WebP image');
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
-        alert('图片大小不能超过 10MB');
+        alert('Image size must not exceed 10MB');
         return;
       }
       const fileName = `cell-${x}-${y}`;
       await supabase.storage.from('images').remove([fileName]);
       const { error } = await supabase.storage.from('images').upload(fileName, file, { upsert: true });
       if (error) {
-        alert('上传失败: ' + error.message);
+        alert('Upload failed: ' + error.message);
         return;
       }
       const { data } = supabase.storage.from('images').getPublicUrl(fileName);
@@ -221,12 +247,12 @@
       img.src = publicURL;
       img.classList.remove('hidden');
       document.getElementById(`upload-icon-${x}-${y}`).classList.add('hidden');
-      showNotification('图片上传成功', 'success');
+      showNotification('Image uploaded successfully', 'success');
     }
 
-    // 自动加载所有格子的图片（只加载已存在的图片）
+    // Auto load all cell images (only load existing images)
     async function loadAllCellImages() {
-      // 只加载已存在的图片，避免大量404
+      // Only load existing images to avoid 404s
       const { data, error } = await supabase.storage.from('images').list('', { limit: 4096 });
       if (error || !data) return;
       data.forEach(image => {
@@ -250,7 +276,7 @@
     // 初始化渲染
     document.addEventListener('DOMContentLoaded', renderGrid);
 
-    // 图片预览模态框
+    // Image preview modal
     const imageModal = document.getElementById('image-modal');
     const modalImage = document.getElementById('modal-image');
     const modalFilename = document.getElementById('modal-filename');
@@ -271,10 +297,10 @@
       }
     });
 
-    // 通用工具
+    // Utils
     function formatDate(dateString) {
       const date = new Date(dateString);
-      return date.toLocaleDateString('zh-CN', {
+      return date.toLocaleDateString('en-US', {
         year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
       });
     }
@@ -307,7 +333,7 @@
       }, 3000);
     }
 
-    // 冷却弹窗
+    // Cooldown modal
     function showCooldownModal(remainSeconds) {
       let modal = document.getElementById('cooldown-modal');
       if (!modal) {
@@ -317,9 +343,9 @@
         modal.innerHTML = `
           <div class="bg-white rounded-lg shadow-lg px-8 py-6 flex flex-col items-center">
             <i class='fa fa-clock-o text-3xl text-primary mb-2'></i>
-            <div class='text-lg font-semibold mb-1'>冷却中</div>
+            <div class='text-lg font-semibold mb-1'>Cooldown</div>
             <div id='cooldown-remaining' class='text-primary text-2xl font-bold mb-2'></div>
-            <div class='text-gray-500 text-sm'>请等待后再上传图片</div>
+            <div class='text-gray-500 text-sm'>Please wait before uploading again</div>
           </div>
         `;
         document.body.appendChild(modal);
@@ -327,11 +353,11 @@
         modal.classList.remove('hidden');
       }
       const remainDiv = document.getElementById('cooldown-remaining');
-      if (remainDiv) remainDiv.textContent = `${remainSeconds} 秒`;
+      if (remainDiv) remainDiv.textContent = `${remainSeconds} s`;
       let left = remainSeconds;
       const timer = setInterval(() => {
         left--;
-        if (remainDiv) remainDiv.textContent = `${left} 秒`;
+        if (remainDiv) remainDiv.textContent = `${left} s`;
         if (left <= 0) {
           clearInterval(timer);
           modal.classList.add('hidden');
