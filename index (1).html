@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>图片上传器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.31.0/dist/umd/supabase.min.js"></script>
+  
+  <!-- Tailwind 配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#722ED1',
+            accent: '#FF7D00',
+            dark: '#1D2129',
+            light: '#F2F3F5'
+          },
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .image-card {
+        @apply relative rounded-lg overflow-hidden shadow-md transition-all duration-300 hover:shadow-xl;
+      }
+      .btn-primary {
+        @apply bg-primary text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 hover:bg-primary/90 hover:shadow-md active:scale-95;
+      }
+      .btn-secondary {
+        @apply bg-secondary text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 hover:bg-secondary/90 hover:shadow-md active:scale-95;
+      }
+      .card {
+        @apply bg-white rounded-xl shadow-md p-4 transition-all duration-300;
+      }
+    }
+  </style>
+</head>
+<body class="font-inter bg-light min-h-screen flex flex-col">
+  <!-- 顶部导航栏 -->
+  <header class="bg-white shadow-sm sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-2">
+        <div class="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+          <i class="fa fa-image text-white text-xl"></i>
+        </div>
+        <h1 class="text-xl font-bold text-dark">图片上传器</h1>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <main class="flex-grow container mx-auto px-4 py-8">
+    <!-- 上传区域 -->
+    <div class="card mb-8">
+      <h2 class="text-xl font-bold text-dark mb-4">上传图片</h2>
+      
+      <div id="upload-container" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
+        <input type="file" id="file-input" accept="image/*" class="hidden">
+        
+        <div id="drop-area" class="py-8">
+          <i class="fa fa-cloud-upload text-gray-400 text-4xl mb-4"></i>
+          <p class="text-gray-500 mb-2">点击或拖拽图片到此处上传</p>
+          <p class="text-xs text-gray-400">支持 JPG, PNG, WebP 格式，最大 10MB</p>
+        </div>
+        
+        <div id="upload-progress" class="hidden mt-4">
+          <div class="w-full bg-gray-200 rounded-full h-2.5">
+            <div id="progress-bar" class="bg-primary h-2.5 rounded-full" style="width: 0%"></div>
+          </div>
+          <p id="progress-text" class="text-sm text-gray-500 mt-1">上传中: 0%</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 图片网格 -->
+    <div class="card">
+      <div class="flex justify-between items-center mb-6">
+        <h2 class="text-xl font-bold text-dark">所有图片</h2>
+        <div class="relative">
+          <input type="text" id="search-input" placeholder="搜索图片..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
+          <i class="fa fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+        </div>
+      </div>
+      
+      <div id="images-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <!-- 图片将通过JavaScript动态加载 -->
+        <div class="col-span-full text-center py-12 text-gray-500" id="empty-state">
+          <i class="fa fa-folder-open-o text-4xl mb-4"></i>
+          <p>暂无图片</p>
+          <p class="text-sm mt-2">上传图片后它们将显示在这里</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-dark text-white py-8 mt-12">
+    <div class="container mx-auto px-4 text-center">
+      <p>&copy; 2025 图片上传器 | 使用 Supabase 构建</p>
+    </div>
+  </footer>
+
+  <!-- 图片预览模态框 -->
+  <div id="image-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
+    <div class="relative max-w-4xl w-full mx-4">
+      <button id="close-modal" class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors">
+        <i class="fa fa-times text-2xl"></i>
+      </button>
+      
+      <div class="bg-white rounded-lg overflow-hidden">
+        <div class="relative" style="padding-bottom: 75%;">
+          <img id="modal-image" src="" alt="图片预览" class="absolute inset-0 w-full h-full object-contain">
+        </div>
+        
+        <div class="p-4 flex justify-between items-center">
+          <div>
+            <h3 id="modal-filename" class="font-medium text-dark"></h3>
+            <p id="modal-created-at" class="text-sm text-gray-500"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 配置 Supabase 客户端
+    const supabase = createClient(
+      'https://your-project-url.supabase.co',
+      'your-anon-key'
+    );
+    
+    // DOM 元素
+    const fileInput = document.getElementById('file-input');
+    const dropArea = document.getElementById('drop-area');
+    const uploadProgress = document.getElementById('upload-progress');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const uploadContainer = document.getElementById('upload-container');
+    const imagesGrid = document.getElementById('images-grid');
+    const emptyState = document.getElementById('empty-state');
+    const imageModal = document.getElementById('image-modal');
+    const modalImage = document.getElementById('modal-image');
+    const modalFilename = document.getElementById('modal-filename');
+    const modalCreatedAt = document.getElementById('modal-created-at');
+    const closeModal = document.getElementById('close-modal');
+    const searchInput = document.getElementById('search-input');
+    
+    // 初始化应用
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 加载所有图片
+      loadImages();
+      
+      // 上传相关事件监听
+      uploadContainer.addEventListener('click', () => {
+        fileInput.click();
+      });
+      
+      fileInput.addEventListener('change', handleFileUpload);
+      
+      // 拖拽上传
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+      });
+      
+      function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      
+      ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+      });
+      
+      ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+      });
+      
+      function highlight() {
+        dropArea.classList.add('bg-primary/5', 'border-primary');
+      }
+      
+      function unhighlight() {
+        dropArea.classList.remove('bg-primary/5', 'border-primary');
+      }
+      
+      dropArea.addEventListener('drop', handleDrop, false);
+      
+      function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        
+        if (files.length > 0) {
+          handleFileUpload({ target: { files } });
+        }
+      }
+      
+      // 模态框事件
+      closeModal.addEventListener('click', () => {
+        imageModal.classList.add('hidden');
+      });
+      
+      imageModal.addEventListener('click', (e) => {
+        if (e.target === imageModal) {
+          imageModal.classList.add('hidden');
+        }
+      });
+      
+      // 搜索功能
+      searchInput.addEventListener('input', searchImages);
+    });
+    
+    // 处理文件上传
+    async function handleFileUpload(event) {
+      const files = event.target.files;
+      
+      if (files.length === 0) {
+        return;
+      }
+      
+      const file = files[0];
+      
+      // 验证文件类型和大小
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('请上传 JPG, PNG 或 WebP 格式的图片');
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) {  // 10MB
+        alert('图片大小不能超过 10MB');
+        return;
+      }
+      
+      // 显示上传进度
+      dropArea.classList.add('hidden');
+      uploadProgress.classList.remove('hidden');
+      progressBar.style.width = '0%';
+      progressText.textContent = '上传中: 0%';
+      
+      try {
+        // 生成唯一文件名
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
+        // 上传到 Supabase 存储
+        const { error } = await supabase.storage
+          .from('images')
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        if (error) {
+          throw error;
+        }
+        
+        // 上传成功，刷新图片列表
+        loadImages();
+        
+        // 重置上传区域
+        setTimeout(() => {
+          progressBar.style.width = '100%';
+          progressText.textContent = '上传成功!';
+          
+          setTimeout(() => {
+            dropArea.classList.remove('hidden');
+            uploadProgress.classList.add('hidden');
+            fileInput.value = '';
+          }, 1000);
+        }, 500);
+        
+        showNotification('图片上传成功', 'success');
+      } catch (error) {
+        console.error('上传失败:', error);
+        alert('上传失败: ' + error.message);
+        
+        // 重置上传区域
+        dropArea.classList.remove('hidden');
+        uploadProgress.classList.add('hidden');
+        fileInput.value = '';
+      }
+    }
+    
+    // 加载图片
+    async function loadImages() {
+      try {
+        // 清空当前图片
+        imagesGrid.innerHTML = '';
+        
+        // 从存储桶获取图片列表
+        const { data, error } = await supabase.storage
+          .from('images')
+          .list('', {
+            limit: 100,
+            offset: 0,
+            sortBy: { column: 'created_at', order: 'desc' }
+          });
+        
+        if (error) {
+          throw error;
+        }
+        
+        // 检查是否有图片
+        if (data.length === 0) {
+          emptyState.classList.remove('hidden');
+          return;
+        }
+        
+        // 隐藏空状态
+        emptyState.classList.add('hidden');
+        
+        // 渲染图片
+        data.forEach(image => {
+          // 获取图片的公共URL
+          const { publicURL } = supabase.storage
+            .from('images')
+            .getPublicUrl(image.name);
+          
+          // 创建图片卡片
+          const card = document.createElement('div');
+          card.className = 'image-card group';
+          card.dataset.filename = image.name;
+          
+          card.innerHTML = `
+            <div class="aspect-square overflow-hidden">
+              <img src="${publicURL}" alt="${image.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+              <p class="text-white text-sm font-medium truncate">${image.name}</p>
+              <p class="text-white/80 text-xs">${formatDate(image.last_modified)}</p>
+            </div>
+          `;
+          
+          // 添加点击事件
+          card.addEventListener('click', () => {
+            openImageModal(image.name, publicURL, image.last_modified);
+          });
+          
+          imagesGrid.appendChild(card);
+        });
+      } catch (error) {
+        console.error('加载图片失败:', error);
+        alert('加载图片失败: ' + error.message);
+      }
+    }
+    
+    // 打开图片模态框
+    function openImageModal(filename, url, createdAt) {
+      modalImage.src = url;
+      modalFilename.textContent = filename;
+      modalCreatedAt.textContent = formatDate(createdAt);
+      imageModal.classList.remove('hidden');
+    }
+    
+    // 搜索图片
+    async function searchImages() {
+      const query = searchInput.value.toLowerCase().trim();
+      
+      if (!query) {
+        // 如果搜索框为空，加载所有图片
+        loadImages();
+        return;
+      }
+      
+      try {
+        // 从存储桶获取图片列表
+        const { data, error } = await supabase.storage
+          .from('images')
+          .list('', {
+            limit: 100,
+            offset: 0,
+            sortBy: { column: 'created_at', order: 'desc' }
+          });
+        
+        if (error) {
+          throw error;
+        }
+        
+        // 过滤图片
+        const filteredImages = data.filter(image => 
+          image.name.toLowerCase().includes(query)
+        );
+        
+        // 清空当前图片
+        imagesGrid.innerHTML = '';
+        
+        // 检查是否有匹配的图片
+        if (filteredImages.length === 0) {
+          emptyState.classList.remove('hidden');
+          emptyState.innerHTML = `
+            <i class="fa fa-search text-4xl mb-4 text-gray-400"></i>
+            <p>未找到匹配的图片</p>
+            <p class="text-sm mt-2">尝试使用不同的关键词进行搜索</p>
+          `;
+          return;
+        }
+        
+        // 隐藏空状态
+        emptyState.classList.add('hidden');
+        
+        // 渲染匹配的图片
+        filteredImages.forEach(image => {
+          const { publicURL } = supabase.storage
+            .from('images')
+            .getPublicUrl(image.name);
+          
+          const card = document.createElement('div');
+          card.className = 'image-card group';
+          card.dataset.filename = image.name;
+          
+          card.innerHTML = `
+            <div class="aspect-square overflow-hidden">
+              <img src="${publicURL}" alt="${image.name}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+            </div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
+              <p class="text-white text-sm font-medium truncate">${image.name}</p>
+              <p class="text-white/80 text-xs">${formatDate(image.last_modified)}</p>
+            </div>
+          `;
+          
+          card.addEventListener('click', () => {
+            openImageModal(image.name, publicURL, image.last_modified);
+          });
+          
+          imagesGrid.appendChild(card);
+        });
+      } catch (error) {
+        console.error('搜索失败:', error);
+        alert('搜索失败: ' + error.message);
+      }
+    }
+    
+    // 格式化日期
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('zh-CN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    // 显示通知
+    function showNotification(message, type = 'info') {
+      // 创建通知元素
+      const notification = document.createElement('div');
+      notification.className = `fixed top-4 right-4 px-4 py-3 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full z-50 ${
+        type === 'success' ? 'bg-green-500 text-white' : 
+        type === 'error' ? 'bg-red-500 text-white' : 
+        'bg-blue-500 text-white'
+      }`;
+      
+      notification.innerHTML = `
+        <div class="flex items-center">
+          <i class="fa fa-${
+            type === 'success' ? 'check-circle' : 
+            type === 'error' ? 'exclamation-circle' : 
+            'info-circle'
+          } mr-2"></i>
+          <span>${message}</span>
+        </div>
+      `;
+      
+      // 添加到页面
+      document.body.appendChild(notification);
+      
+      // 显示动画
+      setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+      }, 10);
+      
+      // 3秒后隐藏
+      setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 300);
+      }, 3000);
+    }
+  </script>
+</body>
+</html>    
