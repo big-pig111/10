@@ -96,7 +96,7 @@
 
     // 查询SPL代币余额
     async function getTokenBalance(userAddress) {
-      const connection = new solanaWeb3.Connection('https://api.mainnet-beta.solana.com');
+      const connection = new solanaWeb3.Connection('https://solana-mainnet.g.alchemy.com/v2/qdb04ZyNT_ENXooqO8rN8');
       const publicKey = new solanaWeb3.PublicKey(userAddress);
       const tokenMint = new solanaWeb3.PublicKey(TOKEN_MINT);
       const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
