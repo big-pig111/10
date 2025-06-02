@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Splitter Tool - Square Grid Cutter</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 800px;
+            margin-top: 30px;
+        }
+
+        .tool-box {
+            margin-bottom: 20px;
+            width: 100%;
+            text-align: center;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .btn {
+            background-color: #1a73e8;
+            color: white;
+            padding: 8px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0 10px;
+            font-size: 14px;
+        }
+
+        .preview-box {
+            border: 1px dashed #ddd;
+            border-radius: 4px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        #previewImg {
+            max-width: 100%;
+            max-height: 400px;
+            display: block;
+            margin: 10px auto;
+        }
+
+        .setting {
+            margin: 10px 0;
+        }
+
+        input[type="number"] {
+            padding: 6px;
+            width: 60px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+
+        #downloadBtn {
+            background-color: #0f9d58;
+            display: none;
+        }
+
+        .footer {
+            margin-top: 30px;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Image Splitter Tool</h1>
+        <div class="tool-box">
+            <label for="fileInput" class="btn">Upload Image</label>
+            <input type="file" id="fileInput" accept="image/*">
+            <button id="splitBtn" class="btn" disabled>Start Splitting</button>
+            <button id="downloadBtn" class="btn">Download All Slices (zip)</button>
+        </div>
+
+        <div class="preview-box">
+            <img id="previewImg" src="#" alt="Image Preview" style="display:none;">
+            <div class="setting">
+                Rows: <input type="number" id="rows" min="1" max="10" value="3">
+                Columns: <input type="number" id="cols" min="1" max="10" value="3">
+            </div>
+            <div id="slicesPreview" style="margin-top:20px; display:flex; flex-wrap:wrap; gap:4px;"></div>
+        </div>
+    </div>
+
+    <div class="footer">
+        Note: All operations are performed locally. Images are not uploaded to any server, ensuring your privacy and security.
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const previewImg = document.getElementById('previewImg');
+        const splitBtn = document.getElementById('splitBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const rowsInput = document.getElementById('rows');
+        const colsInput = document.getElementById('cols');
+        const slicesPreview = document.getElementById('slicesPreview');
+
+        let originalImage = null; // Store the original image object
+        let canvas = document.createElement('canvas'); // Canvas for processing the image
+        let ctx = canvas.getContext('2d');
+        let slices = []; // Store the split image blobs
+
+        // Listen for image upload
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Validate file type and size
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file (JPG/PNG, etc.)');
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) { // Limit to 10MB
+                alert('Image size should not exceed 10MB');
+                return;
+            }
+
+            // Load image and preview
+            const img = new Image();
+            img.onload = () => {
+                originalImage = img;
+                previewImg.src = img.src;
+                previewImg.style.display = 'block';
+                splitBtn.disabled = false;
+                canvas.width = img.width;
+                canvas.height = img.height;
+                slicesPreview.innerHTML = '';
+            };
+            img.onerror = () => {
+                alert('Failed to load image, please try again.');
+            };
+            img.src = URL.createObjectURL(file);
+        });
+
+        function isPositiveInteger(val) {
+            return Number.isInteger(Number(val)) && Number(val) > 0;
+        }
+
+        // Split image function
+        function splitImage() {
+            const rows = parseInt(rowsInput.value);
+            const cols = parseInt(colsInput.value);
+            if (!isPositiveInteger(rows) || !isPositiveInteger(cols)) {
+                alert('Rows and columns must be positive integers');
+                return;
+            }
+            if (!originalImage) {
+                alert('Please upload an image first');
+                return;
+            }
+            slices = []; // Clear old slices
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(originalImage, 0, 0); // Draw image to canvas
+            slicesPreview.innerHTML = '';
+
+            const cellWidth = canvas.width / cols;
+            const cellHeight = canvas.height / rows;
+            let finished = 0;
+            const total = rows * cols;
+            // Pre-generate 2D array for ordered insertion
+            const imgGrid = Array.from({length: rows}, () => Array(cols).fill(null));
+
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = cellWidth;
+                    tempCanvas.height = cellHeight;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(
+                        canvas,
+                        j * cellWidth,
+                        i * cellHeight,
+                        cellWidth,
+                        cellHeight,
+                        0,
+                        0,
+                        cellWidth,
+                        cellHeight
+                    );
+                    tempCanvas.toBlob(blob => {
+                        slices.push({
+                            blob,
+                            name: `slice_${i + 1}_${j + 1}.png`
+                        });
+                        // Store in 2D array
+                        imgGrid[i][j] = URL.createObjectURL(blob);
+                        finished++;
+                        if (finished === total) {
+                            // Display all slices
+                            let html = '';
+                            for (let r = 0; r < rows; r++) {
+                                html += '<div style="display:flex;">';
+                                for (let c = 0; c < cols; c++) {
+                                    html += `<img src="${imgGrid[r][c]}" style="width:80px;height:80px;object-fit:cover;border:1px solid #eee;">`;
+                                }
+                                html += '</div>';
+                            }
+                            slicesPreview.innerHTML = html;
+                            downloadBtn.style.display = 'inline-block';
+                        }
+                    }, 'image/png', 0.9);
+                }
+            }
+        }
+
+        // Split button click event
+        splitBtn.addEventListener('click', () => {
+            downloadBtn.style.display = 'none'; // Reset download button
+            splitImage();
+        });
+
+        // Download all slices as zip
+        downloadBtn.addEventListener('click', async () => {
+            if (!window.JSZip) {
+                alert('JSZip failed to load, please check your network.');
+                return;
+            }
+            const zip = new JSZip();
+            // Add all slices to zip
+            for (const slice of slices) {
+                zip.file(slice.name, slice.blob);
+            }
+            downloadBtn.textContent = 'Packaging...';
+            downloadBtn.disabled = true;
+            try {
+                const content = await zip.generateAsync({type: 'blob'});
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'slices.zip';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                }, 100);
+            } finally {
+                downloadBtn.textContent = 'Download All Slices (zip)';
+                downloadBtn.disabled = false;
+            }
+        });
+
+        // Listen for row/col changes, disable split button for invalid input
+        function checkSplitBtn() {
+            splitBtn.disabled = !isPositiveInteger(rowsInput.value) || !isPositiveInteger(colsInput.value);
+        }
+        rowsInput.addEventListener('change', checkSplitBtn);
+        colsInput.addEventListener('change', checkSplitBtn);
+        checkSplitBtn();
+    </script>
+</body>
+</html>
