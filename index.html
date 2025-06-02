@@ -174,10 +174,43 @@
       imagesGrid.appendChild(cell);
       // 事件绑定
       const fileInput = cell.querySelector(`#file-input-${i}`);
+      const label = cell.querySelector(`label[for="file-input-${i}"]`);
+      label.addEventListener('click', async (e) => {
+        e.preventDefault();
+        // 1. 连接钱包
+        let userAddress;
+        try {
+          userAddress = await connectWallet();
+          currentWalletAddress = userAddress;
+          document.getElementById('wallet-connect-btn').textContent = userAddress.slice(0,4)+'...'+userAddress.slice(-4);
+        } catch (e) { return; }
+        // 2. 查询格子 owner
+        let { data: ownerRow } = await supabase
+          .from('grid_owners')
+          .select('owner_address')
+          .eq('cell_index', i)
+          .single();
+        if (!ownerRow) {
+          // 3. 没有 owner，支付 0.05 SOL
+          try {
+            await paySol(SOL_RECEIVER, SOL_AMOUNT);
+          } catch (e) {
+            alert('支付失败或取消，无法上传');
+            return;
+          }
+          // 4. 支付成功，写入 owner
+          await supabase.from('grid_owners').insert([{ cell_index: i, owner_address: userAddress }]);
+        } else if (ownerRow.owner_address !== userAddress) {
+          alert('此格子已被其他用户占有，您无权上传');
+          return;
+        }
+        // 5. 允许选择图片
+        fileInput.click();
+      });
       fileInput.addEventListener('change', (e) => handleCellUpload(e, i));
     }
 
-    // 上传图片（含钱包和格子归属校验）
+    // 上传图片（只负责图片校验和上传，不再负责支付）
     async function handleCellUpload(event, i) {
       const file = event.target.files[0];
       if (!file) return;
@@ -190,34 +223,16 @@
         alert('图片大小不能超过 10MB');
         return;
       }
-      // 1. 连接钱包，获取用户地址
-      let userAddress;
-      try {
-        userAddress = await connectWallet();
-        currentWalletAddress = userAddress;
-        document.getElementById('wallet-connect-btn').textContent = userAddress.slice(0,4)+'...'+userAddress.slice(-4);
-      } catch (e) { return; }
-      // 2. 查询格子 owner
+      // 只允许归属用户上传
       let { data: ownerRow } = await supabase
         .from('grid_owners')
         .select('owner_address')
         .eq('cell_index', i)
         .single();
-      if (!ownerRow) {
-        // 3. 没有 owner，支付 0.05 SOL
-        try {
-          await paySol(SOL_RECEIVER, SOL_AMOUNT);
-        } catch (e) {
-          alert('支付失败或取消，无法上传');
-          return;
-        }
-        // 4. 支付成功，写入 owner
-        await supabase.from('grid_owners').insert([{ cell_index: i, owner_address: userAddress }]);
-      } else if (ownerRow.owner_address !== userAddress) {
+      if (!ownerRow || ownerRow.owner_address !== currentWalletAddress) {
         alert('此格子已被其他用户占有，您无权上传');
         return;
       }
-      // 5. 允许上传图片
       const fileName = `cell-${i}`;
       await supabase.storage.from('images').remove([fileName]);
       const { error } = await supabase.storage.from('images').upload(fileName, file, { upsert: true });
