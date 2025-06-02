@@ -243,12 +243,24 @@
         return;
       }
       // Show new image immediately
-      const { data } = supabase.storage.from('images').getPublicUrl(fileName);
-      const publicURL = data.publicUrl;
+      const { data: signedData } = await supabase.storage.from('images').createSignedUrl(fileName, 60);
       const img = document.getElementById(`img-${x}-${y}`);
-      img.src = publicURL;
-      img.classList.remove('hidden');
-      document.getElementById(`upload-icon-${x}-${y}`).classList.add('hidden');
+      if (img && signedData && signedData.signedUrl) {
+        img.src = signedData.signedUrl + '&ts=' + Date.now();
+        img.classList.remove('hidden');
+        document.getElementById(`upload-icon-${x}-${y}`).classList.add('hidden');
+        // High-frequency refresh for 10s after upload
+        let refreshTries = 0;
+        const maxTries = 20; // 10 seconds, every 0.5s
+        const interval = setInterval(async () => {
+          refreshTries++;
+          const { data: signedData2 } = await supabase.storage.from('images').createSignedUrl(fileName, 60);
+          if (img && signedData2 && signedData2.signedUrl) {
+            img.src = signedData2.signedUrl + '&ts=' + Date.now();
+          }
+          if (refreshTries >= maxTries) clearInterval(interval);
+        }, 500);
+      }
       showNotification('Image uploaded successfully', 'success');
       // Start auto-refresh for this cell
       startCellAutoRefresh(x, y);
@@ -257,7 +269,7 @@
     // Store timers for each cell
     const cellRefreshTimers = {};
 
-    // Start auto-refresh for a cell (every second)
+    // Start auto-refresh for a cell (every second) using signedUrl
     function startCellAutoRefresh(x, y) {
       const key = `${x},${y}`;
       if (cellRefreshTimers[key]) {
@@ -265,14 +277,15 @@
       }
       cellRefreshTimers[key] = setInterval(async () => {
         const fileName = `cell-${x}-${y}`;
-        const { data } = supabase.storage.from('images').getPublicUrl(fileName);
-        const publicURL = data.publicUrl + `?t=${Date.now()}`; // prevent cache
-        const img = document.getElementById(`img-${x}-${y}`);
-        if (img) {
-          img.src = publicURL;
-          img.classList.remove('hidden');
-          const icon = document.getElementById(`upload-icon-${x}-${y}`);
-          if (icon) icon.classList.add('hidden');
+        const { data, error } = await supabase.storage.from('images').createSignedUrl(fileName, 60);
+        if (data && data.signedUrl) {
+          const img = document.getElementById(`img-${x}-${y}`);
+          if (img) {
+            img.src = data.signedUrl;
+            img.classList.remove('hidden');
+            const icon = document.getElementById(`upload-icon-${x}-${y}`);
+            if (icon) icon.classList.add('hidden');
+          }
         }
       }, 1000);
     }
@@ -282,16 +295,15 @@
       // Only load existing images to avoid 404s
       const { data, error } = await supabase.storage.from('images').list('', { limit: 4096 });
       if (error || !data) return;
-      data.forEach(image => {
+      for (const image of data) {
         const match = image.name.match(/^cell-(\d+)-(\d+)$/);
         if (match) {
           const x = parseInt(match[1], 10);
           const y = parseInt(match[2], 10);
-          const { data } = supabase.storage.from('images').getPublicUrl(image.name);
-          const publicURL = data.publicUrl;
+          const { data: signedData } = await supabase.storage.from('images').createSignedUrl(image.name, 60);
           const img = document.getElementById(`img-${x}-${y}`);
-          if (img) {
-            img.src = publicURL;
+          if (img && signedData && signedData.signedUrl) {
+            img.src = signedData.signedUrl;
             img.classList.remove('hidden');
             const icon = document.getElementById(`upload-icon-${x}-${y}`);
             if (icon) icon.classList.add('hidden');
@@ -299,7 +311,7 @@
             startCellAutoRefresh(x, y);
           }
         }
-      });
+      }
     }
 
     // 初始化渲染
