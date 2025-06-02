@@ -51,6 +51,8 @@
       <div class="flex items-center space-x-2">
         <span id="token-balance" class="text-sm text-gray-600"></span>
         <button id="wallet-connect-btn" class="btn-primary ml-4">Connect Wallet</button>
+        <button id="preview-btn" class="btn-primary ml-2">Preview</button>
+        <button id="split-tool-btn" class="btn-primary ml-2">Tiling tool</button>
       </div>
     </div>
   </header>
@@ -76,6 +78,30 @@
             <p id="modal-created-at" class="text-sm text-gray-500"></p>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 页面预览 Modal -->
+  <div id="preview-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
+    <div class="relative w-full max-w-5xl h-[80vh] mx-4">
+      <button id="close-preview-modal" class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors">
+        <i class="fa fa-times text-2xl"></i>
+      </button>
+      <div class="bg-white rounded-lg overflow-hidden w-full h-full">
+        <iframe id="preview-iframe" src="" class="w-full h-full" frameborder="0"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- 切图工具 Modal -->
+  <div id="split-tool-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 hidden">
+    <div class="relative w-full max-w-5xl h-[80vh] mx-4">
+      <button id="close-split-tool-modal" class="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors">
+        <i class="fa fa-times text-2xl"></i>
+      </button>
+      <div class="bg-white rounded-lg overflow-hidden w-full h-full">
+        <iframe id="split-tool-iframe" src="index (2).html" class="w-full h-full" frameborder="0"></iframe>
       </div>
     </div>
   </div>
@@ -167,6 +193,40 @@
         walletBtn.textContent = shortAddress(window.solana.publicKey.toString());
         updateTokenBalanceDisplay(window.solana.publicKey.toString());
       }
+      // 预览按钮逻辑
+      const previewBtn = document.getElementById('preview-btn');
+      const previewModal = document.getElementById('preview-modal');
+      const closePreviewModal = document.getElementById('close-preview-modal');
+      const previewIframe = document.getElementById('preview-iframe');
+      previewBtn.addEventListener('click', () => {
+        previewIframe.src = window.location.href;
+        previewModal.classList.remove('hidden');
+      });
+      closePreviewModal.addEventListener('click', () => {
+        previewModal.classList.add('hidden');
+        previewIframe.src = '';
+      });
+      previewModal.addEventListener('click', (e) => {
+        if (e.target === previewModal) {
+          previewModal.classList.add('hidden');
+          previewIframe.src = '';
+        }
+      });
+      // 切图工具按钮逻辑
+      const splitToolBtn = document.getElementById('split-tool-btn');
+      const splitToolModal = document.getElementById('split-tool-modal');
+      const closeSplitToolModal = document.getElementById('close-split-tool-modal');
+      splitToolBtn.addEventListener('click', () => {
+        splitToolModal.classList.remove('hidden');
+      });
+      closeSplitToolModal.addEventListener('click', () => {
+        splitToolModal.classList.add('hidden');
+      });
+      splitToolModal.addEventListener('click', (e) => {
+        if (e.target === splitToolModal) {
+          splitToolModal.classList.add('hidden');
+        }
+      });
     });
 
     // Render fixed grid, each cell 20x20px
