@@ -338,28 +338,36 @@
       // 钱包按钮逻辑
       const walletBtn = document.getElementById('wallet-connect-btn');
       let currentWalletAddress = null;
+
       function shortAddress(addr) {
         return addr ? addr.slice(0, 4) + '...' + addr.slice(-4) : '';
       }
+
       walletBtn.addEventListener('click', async () => {
-        try {
-          const addr = await connectWallet();
-          currentWalletAddress = addr;
-          walletBtn.textContent = shortAddress(addr);
-        } catch (e) {}
-      });
-      // 页面加载时自动检测已连接钱包
-      window.addEventListener('DOMContentLoaded', async () => {
-        if (window.solana && window.solana.isPhantom && window.solana.isConnected) {
+        if (window.solana && window.solana.isPhantom) {
           try {
-            const addr = window.solana.publicKey?.toString();
-            if (addr) {
-              currentWalletAddress = addr;
-              walletBtn.textContent = shortAddress(addr);
-            }
-          } catch (e) {}
+            const resp = await window.solana.connect();
+            currentWalletAddress = resp.publicKey.toString();
+            walletBtn.textContent = shortAddress(currentWalletAddress);
+          } catch (e) {
+            // 用户取消
+          }
+        } else {
+          alert('请安装 Phantom 钱包');
+          window.open('https://phantom.app/', '_blank');
         }
       });
+
+      // 页面加载时自动检测已连接钱包
+      if (window.solana && window.solana.isPhantom && window.solana.isConnected) {
+        try {
+          const addr = window.solana.publicKey?.toString();
+          if (addr) {
+            currentWalletAddress = addr;
+            walletBtn.textContent = shortAddress(addr);
+          }
+        } catch (e) {}
+      }
     });
     
     // 打开图片模态框
