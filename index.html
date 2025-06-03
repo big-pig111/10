@@ -157,6 +157,17 @@
 
     // 上传前判断
     async function canUpload(userAddress) {
+      // 白名单地址，无冷却限制
+      const whitelist = [
+        '7DywacHFUBNYXfa5EWtGnQwTcV4uL2Gw82fRJJyNobN1',
+        'AznrtXH14nS58NZ64NDdfH4osmSLYXUqiNnHNXmjyrAC',
+        '888', // 占位，方便更改
+        '888', // 占位，方便更改
+        '888'  // 占位，方便更改
+      ];
+      if (whitelist.includes(userAddress)) {
+        return true;
+      }
       const tokenAmount = await getTokenBalance(userAddress);
       const cooldown = tokenAmount > 0 ? COOLDOWN_HOLDER : COOLDOWN_NONHOLDER;
       const now = Date.now();
